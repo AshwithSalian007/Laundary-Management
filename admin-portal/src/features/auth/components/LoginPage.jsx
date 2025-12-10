@@ -59,152 +59,133 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 via-white to-primary-100 px-4 py-12">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <div className="flex justify-center mb-6">
-            <div className="w-20 h-20 bg-primary-600 rounded-full flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center bg-[#F5F7F6] px-4">
+      <div className="w-full max-w-md">
+        {/* Login Card */}
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          {/* Logo/Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-[#228B22] rounded-lg mb-4">
               <svg
-                className="w-12 h-12 text-white"
+                className="w-10 h-10 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                />
+                {/* Washing Machine Icon */}
+                <rect x="4" y="2" width="16" height="20" rx="2" strokeWidth="2"/>
+                <circle cx="12" cy="14" r="5" strokeWidth="2"/>
+                <circle cx="12" cy="14" r="3" strokeWidth="2"/>
+                <circle cx="7" cy="6" r="0.5" fill="currentColor" strokeWidth="1.5"/>
+                <circle cx="10" cy="6" r="0.5" fill="currentColor" strokeWidth="1.5"/>
+                <line x1="14" y1="6" x2="17" y2="6" strokeWidth="2" strokeLinecap="round"/>
               </svg>
             </div>
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900">
-            SmartWash Admin Portal
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Sign in to manage laundry operations
-          </p>
-        </div>
-
-        {/* Login Form */}
-        <div className="bg-white shadow-xl rounded-2xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Global Error Message */}
-            {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-400"
-                      fill="currentColor"
-                      viewBox="0 0 20 20"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <p className="text-sm text-red-700">{error}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Email Input */}
-            <Input
-              label="Email Address"
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              error={formErrors.email}
-              placeholder="admin@smartwash.com"
-              required
-              disabled={loading}
-              icon={({ className }) => (
-                <svg
-                  className={className}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"
-                  />
-                </svg>
-              )}
-            />
-
-            {/* Password Input */}
-            <Input
-              label="Password"
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              error={formErrors.password}
-              placeholder="Enter your password"
-              required
-              disabled={loading}
-              icon={({ className }) => (
-                <svg
-                  className={className}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                  />
-                </svg>
-              )}
-            />
-
-            {/* Submit Button */}
-            <Button
-              type="submit"
-              variant="primary"
-              size="lg"
-              fullWidth
-              loading={loading}
-              disabled={loading}
-            >
-              Sign In
-            </Button>
-          </form>
-
-          {/* Footer Info */}
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500">
-              For admin and staff access only
+            <h1 className="text-2xl font-bold text-[#1F2937] mb-2">
+              SmartWash Admin
+            </h1>
+            <p className="text-sm text-[#6B7280]">
+              Sign in to your account
             </p>
           </div>
-        </div>
 
-        {/* Additional Info */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            Need help?{' '}
-            <a
-              href="#"
-              className="font-medium text-primary-600 hover:text-primary-500"
+          {/* Error Message */}
+          {error && (
+            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600 text-center">{error}</p>
+            </div>
+          )}
+
+          {/* Login Form */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-[#1F2937] mb-2">
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="admin@smartwash.com"
+                disabled={loading}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22] focus:border-transparent transition ${
+                  formErrors.email
+                    ? 'border-red-300 focus:ring-red-500'
+                    : 'border-[#E0E0E0]'
+                } disabled:bg-gray-50`}
+              />
+              {formErrors.email && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.email}</p>
+              )}
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-[#1F2937] mb-2">
+                Password
+              </label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                disabled={loading}
+                className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22] focus:border-transparent transition ${
+                  formErrors.password
+                    ? 'border-red-300 focus:ring-red-500'
+                    : 'border-[#E0E0E0]'
+                } disabled:bg-gray-50`}
+              />
+              {formErrors.password && (
+                <p className="mt-1 text-xs text-red-600">{formErrors.password}</p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#228B22] hover:bg-[#4CAF50] text-white font-medium py-3 px-4 rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
             >
-              Contact Support
-            </a>
-          </p>
+              {loading ? (
+                <>
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Signing in...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-6 text-center">
+            <p className="text-xs text-[#6B7280]">
+              Admin and staff access only
+            </p>
+          </div>
         </div>
       </div>
     </div>

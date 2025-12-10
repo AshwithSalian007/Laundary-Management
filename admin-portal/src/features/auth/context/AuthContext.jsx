@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import authService from '../services/authService';
 
 const AuthContext = createContext(null);
 
@@ -15,14 +16,38 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in (from localStorage)
-    const storedUser = localStorage.getItem('user');
-    const token = localStorage.getItem('token');
+    // Validate session on page refresh
+    const validateSession = async () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
 
-    if (storedUser && token) {
-      setUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+      if (storedUser && token) {
+        try {
+          // Call /me endpoint to verify Redis session is still valid
+          const response = await authService.getProfile();
+
+          // Update user with fresh data from Redis
+          if (response.success && response.admin) {
+            setUser(response.admin);
+            localStorage.setItem('user', JSON.stringify(response.admin));
+          } else {
+            // Invalid response, clear storage
+            localStorage.removeItem('user');
+            localStorage.removeItem('token');
+            setUser(null);
+          }
+        } catch (error) {
+          // Session expired or invalid - axios interceptor will handle redirect
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setUser(null);
+        }
+      }
+
+      setLoading(false);
+    };
+
+    validateSession();
   }, []);
 
   const login = (userData, token) => {

@@ -16,13 +16,13 @@ const useLogin = () => {
     try {
       const response = await authService.login(email, password);
 
-      // Check if user is admin or staff
-      if (response.user.role !== 'admin' && response.user.role !== 'staff') {
-        throw new Error('Access denied. Admin or staff credentials required.');
+      // Check if response has admin data
+      if (!response.admin) {
+        throw new Error('Invalid response from server.');
       }
 
-      // Save user data and token
-      login(response.user, response.token);
+      // Save admin data and token
+      login(response.admin, response.token);
 
       // Navigate to dashboard
       navigate('/dashboard');

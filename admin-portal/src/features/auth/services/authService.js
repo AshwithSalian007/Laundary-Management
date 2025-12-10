@@ -4,7 +4,7 @@ const authService = {
   // Login function
   login: async (email, password) => {
     try {
-      const response = await axiosInstance.post('/auth/login', {
+      const response = await axiosInstance.post('/admin/login', {
         email,
         password,
       });
@@ -17,7 +17,7 @@ const authService = {
   // Get current user profile
   getProfile: async () => {
     try {
-      const response = await axiosInstance.get('/auth/me');
+      const response = await axiosInstance.get('/admin/me');
       return response.data;
     } catch (error) {
       throw error.response?.data || { message: 'Failed to fetch profile' };
@@ -27,7 +27,7 @@ const authService = {
   // Logout function (if backend has logout endpoint)
   logout: async () => {
     try {
-      const response = await axiosInstance.post('/auth/logout');
+      const response = await axiosInstance.post('/admin/logout');
       return response.data;
     } catch (error) {
       // Even if logout fails on backend, we clear local storage

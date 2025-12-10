@@ -29,11 +29,29 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle 401 Unauthorized - logout user
+    // Handle 401 Unauthorized - auto logout (session expired or invalid token)
     if (error.response?.status === 401) {
+      const errorMessage = error.response?.data?.message || 'Session expired';
+
+      // Clear local storage
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+
+      // Redirect to login
       window.location.href = '/login';
+
+      // Prevent further error propagation
+      return Promise.reject({
+        message: errorMessage,
+        isAuthError: true,
+      });
+    }
+
+    // Handle 503 Service Unavailable (Redis down)
+    if (error.response?.status === 503) {
+      return Promise.reject({
+        message: error.response?.data?.message || 'Service temporarily unavailable. Please try again.',
+      });
     }
 
     // Handle network errors
