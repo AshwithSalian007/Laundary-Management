@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@theme {
+  /* Primary Brand Colors - Forest Green */
+  --color-primary-50: #f0f9f4;
+  --color-primary-100: #dcf4e4;
+  --color-primary-200: #bae8cd;
+  --color-primary-300: #86d5a8;
+  --color-primary-400: #4CAF50;
+  --color-primary-500: #228B22;
+  --color-primary-600: #1e7a1e;
+  --color-primary-700: #1a661a;
+  --color-primary-800: #145214;
+  --color-primary-900: #0f3d0f;
+
+  /* Semantic Colors */
+  --color-forest: #228B22;
+  --color-dark-forest: #145214;
+  --color-soft-green: #4CAF50;
+
+  /* Neutral UI Colors */
+  --color-app-bg: #F5F7F6;
+  --color-card: #FFFFFF;
+  --color-border: #E0E0E0;
+  --color-muted: #6B7280;
+  --color-text: #1F2937;
+
+  /* Status Colors */
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-error: #EF4444;
+  --color-info: #3B82F6;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
+
+  /* Border Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-app-bg);
+    color: var(--color-text);
+  }
+}
+
+@layer components {
+  /* Sidebar Styles */
+  .sidebar {
+    @apply bg-[#145214] text-white;
+  }
+
+  /* Navbar Styles */
+  .navbar {
+    @apply bg-[#228B22] text-white;
+  }
+
+  /* Card Styles */
+  .card {
+    @apply bg-white border border-[#E0E0E0] rounded-lg shadow-md;
+  }
+
+  /* Button Primary */
+  .btn-primary {
+    @apply bg-[#228B22] text-white hover:bg-[#4CAF50] transition-colors duration-200 rounded-lg px-4 py-2;
+  }
+
+  /* Button Secondary */
+  .btn-secondary {
+    @apply bg-[#4CAF50] text-white hover:bg-[#228B22] transition-colors duration-200 rounded-lg px-4 py-2;
+  }
+
+  /* Badge Success */
+  .badge-success {
+    @apply bg-[#22C55E] text-white px-2 py-1 rounded text-xs;
+  }
+
+  /* Badge Warning */
+  .badge-warning {
+    @apply bg-[#F59E0B] text-white px-2 py-1 rounded text-xs;
+  }
+
+  /* Badge Error */
+  .badge-error {
+    @apply bg-[#EF4444] text-white px-2 py-1 rounded text-xs;
+  }
+
+  /* Badge Info */
+  .badge-info {
+    @apply bg-[#3B82F6] text-white px-2 py-1 rounded text-xs;
+  }
+}
