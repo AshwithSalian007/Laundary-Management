@@ -171,6 +171,17 @@ export const createStaff = async (req, res) => {
         });
       }
 
+      // SECURITY: Prevent non-super-admins from creating roles with 'all' permission
+      const hasAllPermission = permissions.some(p => p.permission_name === 'all');
+      const requesterIsSuperAdmin = req.user.permissions.includes('all');
+
+      if (hasAllPermission && !requesterIsSuperAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Only super admins can create roles with super admin permission.',
+        });
+      }
+
       // Check if role name already exists
       const existingRole = await Role.findOne({ name: newRoleName.toLowerCase() });
       if (existingRole) {
@@ -190,12 +201,23 @@ export const createStaff = async (req, res) => {
     }
     // Option 2: Assign existing role
     else if (roleId) {
-      // Verify role exists
-      const existingRole = await Role.findById(roleId);
+      // Verify role exists and populate permissions
+      const existingRole = await Role.findById(roleId).populate('permissions');
       if (!existingRole) {
         return res.status(400).json({
           success: false,
           message: 'Role not found',
+        });
+      }
+
+      // SECURITY: Prevent non-super-admins from creating staff with super admin role
+      const roleHasAllPermission = existingRole.permissions.some(p => p.permission_name === 'all');
+      const requesterIsSuperAdmin = req.user.permissions.includes('all');
+
+      if (roleHasAllPermission && !requesterIsSuperAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied. Only super admins can create staff with super admin role.',
         });
       }
 
@@ -384,12 +406,40 @@ export const updateStaffRole = async (req, res) => {
       });
     }
 
-    // Check if role exists
-    const role = await Role.findById(roleId).populate('permissions');
-    if (!role) {
+    // Check if new role exists
+    const newRole = await Role.findById(roleId).populate('permissions');
+    if (!newRole) {
       return res.status(404).json({
         success: false,
         message: 'Role not found',
+      });
+    }
+
+    // Fetch target staff with current role
+    const targetStaff = await Admin.findById(id).populate({
+      path: 'role',
+      populate: {
+        path: 'permissions',
+        model: 'Permission'
+      }
+    });
+
+    if (!targetStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff not found',
+      });
+    }
+
+    // SECURITY: Prevent non-super-admins from editing super admin staff
+    const requesterIsSuperAdmin = req.user.permissions.includes('all');
+    const targetHasAllPermission = targetStaff.role.permissions.some(p => p.permission_name === 'all');
+    const newRoleHasAllPermission = newRole.permissions.some(p => p.permission_name === 'all');
+
+    if (!requesterIsSuperAdmin && (targetHasAllPermission || newRoleHasAllPermission)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only super admins can modify super admin staff or assign super admin roles.',
       });
     }
 
@@ -406,15 +456,8 @@ export const updateStaffRole = async (req, res) => {
       }
     });
 
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: 'Staff not found',
-      });
-    }
-
     // Extract new permissions
-    const permissions = role.permissions.map(p => p.permission_name);
+    const permissions = newRole.permissions.map(p => p.permission_name);
 
     // Update permissions in Redis if staff is logged in (preserves remaining TTL)
     let redisUpdated = false;
@@ -468,19 +511,39 @@ export const deleteStaff = async (req, res) => {
       });
     }
 
+    // Fetch target staff to check their role
+    const targetStaff = await Admin.findById(id).populate({
+      path: 'role',
+      populate: {
+        path: 'permissions',
+        model: 'Permission'
+      }
+    });
+
+    if (!targetStaff) {
+      return res.status(404).json({
+        success: false,
+        message: 'Staff not found',
+      });
+    }
+
+    // SECURITY: Prevent non-super-admins from deleting super admin staff
+    const requesterIsSuperAdmin = req.user.permissions.includes('all');
+    const targetHasAllPermission = targetStaff.role.permissions.some(p => p.permission_name === 'all');
+
+    if (!requesterIsSuperAdmin && targetHasAllPermission) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only super admins can delete super admin staff.',
+      });
+    }
+
     // Deactivate admin in MongoDB
     const admin = await Admin.findByIdAndUpdate(
       id,
       { isActive: false },
       { new: true }
     ).select('-password');
-
-    if (!admin) {
-      return res.status(404).json({
-        success: false,
-        message: 'Staff not found',
-      });
-    }
 
     // Remove from Redis (force logout)
     await redisAuth.deleteAdminSession(id);
@@ -522,6 +585,17 @@ export const createRole = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'One or more permission IDs are invalid',
+      });
+    }
+
+    // SECURITY: Prevent non-super-admins from creating roles with 'all' permission
+    const hasAllPermission = permissions.some(p => p.permission_name === 'all');
+    const requesterIsSuperAdmin = req.user.permissions.includes('all');
+
+    if (hasAllPermission && !requesterIsSuperAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only super admins can create roles with super admin permission.',
       });
     }
 
@@ -582,19 +656,34 @@ export const updateRolePermissions = async (req, res) => {
       });
     }
 
+    // Fetch existing role to check its current state
+    const existingRole = await Role.findById(id).populate('permissions');
+    if (!existingRole) {
+      return res.status(404).json({
+        success: false,
+        message: 'Role not found',
+      });
+    }
+
+    // SECURITY: Prevent non-super-admins from modifying super admin role
+    const requesterIsSuperAdmin = req.user.permissions.includes('all');
+    const isSuperAdminRole = existingRole.name === 'super admin';
+    const currentHasAllPermission = existingRole.permissions.some(p => p.permission_name === 'all');
+    const newHasAllPermission = permissions.some(p => p.permission_name === 'all');
+
+    if (!requesterIsSuperAdmin && (isSuperAdminRole || currentHasAllPermission || newHasAllPermission)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Only super admins can modify super admin role or assign super admin permission.',
+      });
+    }
+
     // Update role in MongoDB
     const role = await Role.findByIdAndUpdate(
       id,
       { permissions: permissionIds },
       { new: true }
     ).populate('permissions');
-
-    if (!role) {
-      return res.status(404).json({
-        success: false,
-        message: 'Role not found',
-      });
-    }
 
     // Find all admins with this role
     const adminsWithRole = await Admin.find({ role: id });

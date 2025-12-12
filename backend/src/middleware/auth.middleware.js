@@ -122,3 +122,11 @@ export const checkPermission = (...requiredPermissions) => {
 
 // Middleware to check if admin has "all" permission (Super Admin)
 export const isSuperAdmin = checkPermission('all');
+
+// Middleware to check if admin can manage staff
+// Checks for 'manage_staff' permission, but 'all' permission bypasses (line 103)
+export const canManageStaff = checkPermission('manage_staff');
+
+// Middleware to check if admin can manage roles
+// Checks for 'manage_roles' permission, but 'all' permission bypasses (line 103)
+export const canManageRoles = checkPermission('manage_roles');

@@ -9,6 +9,7 @@ const StaffManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hasPermission, setHasPermission] = useState(true);
 
   // Form states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -35,8 +36,18 @@ const StaffManagement = () => {
       setStaff(staffRes.staff || []);
       setRoles(rolesRes.roles || []);
       setError('');
+      setHasPermission(true);
     } catch (err) {
-      setError(err.message || 'Failed to fetch data');
+      // Check if it's a permission denied error (403 status or "Access denied" message)
+      const isPermissionError = err.status === 403 ||
+                                (err.message && err.message.toLowerCase().includes('access denied'));
+
+      if (isPermissionError) {
+        setHasPermission(false);
+        setError(err.message || 'Access denied. You do not have permission to view this page.');
+      } else {
+        setError(err.message || 'Failed to fetch data');
+      }
     } finally {
       setLoading(false);
     }
@@ -104,6 +115,20 @@ const StaffManagement = () => {
     );
   }
 
+  // Show permission denied page if user doesn't have access
+  if (!hasPermission) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h1 className="text-2xl font-bold text-gray-900">Staff Management</h1>
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -153,60 +178,84 @@ const StaffManagement = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {staff.map((member) => (
-                <tr key={member._id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {member.email}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 capitalize">
-                    {member.role?.name || 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    <div className="flex flex-wrap gap-1">
-                      {member.role?.permissions?.slice(0, 3).map((perm) => (
-                        <span
-                          key={perm._id}
-                          className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                        >
-                          {perm.permission_name}
-                        </span>
-                      ))}
-                      {member.role?.permissions?.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
-                          +{member.role.permissions.length - 3} more
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        member.isActive
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                    >
-                      {member.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button
-                      onClick={() => openEditModal(member)}
-                      className="text-blue-600 hover:text-blue-900"
-                    >
-                      Edit Role
-                    </button>
-                    {member.isActive && (
-                      <button
-                        onClick={() => handleDeleteStaff(member._id)}
-                        className="text-red-600 hover:text-red-900"
+              {staff.map((member) => {
+                // Check if this staff member has super admin permission
+                const isSuperAdmin = member.role?.permissions?.some(p => p.permission_name === 'all');
+
+                return (
+                  <tr key={member._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {member.email}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <span className="capitalize">{member.role?.name || 'N/A'}</span>
+                        {isSuperAdmin && (
+                          <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-xs font-semibold rounded">
+                            SUPER ADMIN
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      <div className="flex flex-wrap gap-1">
+                        {member.role?.permissions?.slice(0, 3).map((perm) => (
+                          <span
+                            key={perm._id}
+                            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
+                          >
+                            {perm.permission_name}
+                          </span>
+                        ))}
+                        {member.role?.permissions?.length > 3 && (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                            +{member.role.permissions.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          member.isActive
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
                       >
-                        Deactivate
+                        {member.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                      <button
+                        onClick={() => !isSuperAdmin && openEditModal(member)}
+                        disabled={isSuperAdmin}
+                        className={`${
+                          isSuperAdmin
+                            ? 'text-gray-400 cursor-not-allowed'
+                            : 'text-blue-600 hover:text-blue-900'
+                        }`}
+                        title={isSuperAdmin ? 'Only super admins can modify super admin staff' : ''}
+                      >
+                        Edit Role
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                      {member.isActive && (
+                        <button
+                          onClick={() => !isSuperAdmin && handleDeleteStaff(member._id)}
+                          disabled={isSuperAdmin}
+                          className={`${
+                            isSuperAdmin
+                              ? 'text-gray-400 cursor-not-allowed'
+                              : 'text-red-600 hover:text-red-900'
+                          }`}
+                          title={isSuperAdmin ? 'Only super admins can deactivate super admin staff' : ''}
+                        >
+                          Deactivate
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

@@ -10,13 +10,43 @@ export const initializeAdmin = async () => {
   try {
     console.log('🔄 Initializing admin system...');
 
-    // Step 1: Create default permissions if they don't exist
+    // Step 1: Clean up deprecated/old permissions
+    const deprecatedPermissions = ['create_users', 'read_users', 'update_users', 'delete_users'];
+
+    // Find roles that have deprecated permissions
+    const rolesWithDeprecatedPerms = await Role.find({
+      permissions: { $exists: true }
+    }).populate('permissions');
+
+    // Check if any deprecated permissions are in use
+    let hasDeprecatedInUse = false;
+    for (const role of rolesWithDeprecatedPerms) {
+      const deprecatedInRole = role.permissions.filter(p =>
+        deprecatedPermissions.includes(p.permission_name)
+      );
+      if (deprecatedInRole.length > 0) {
+        console.log(`⚠️  Role "${role.name}" has deprecated permissions: ${deprecatedInRole.map(p => p.permission_name).join(', ')}`);
+        hasDeprecatedInUse = true;
+      }
+    }
+
+    if (!hasDeprecatedInUse) {
+      // Safe to delete deprecated permissions
+      const deleteResult = await Permission.deleteMany({
+        permission_name: { $in: deprecatedPermissions }
+      });
+
+      if (deleteResult.deletedCount > 0) {
+        console.log(`✅ Cleaned up ${deleteResult.deletedCount} deprecated permission(s): ${deprecatedPermissions.join(', ')}`);
+      }
+    } else {
+      console.log('⚠️  Cannot auto-delete deprecated permissions - they are still assigned to roles. Please manually reassign roles first.');
+    }
+
+    // Step 2: Create default permissions if they don't exist
     const defaultPermissions = [
       { permission_name: 'all' },
-      { permission_name: 'create_users' },
-      { permission_name: 'read_users' },
-      { permission_name: 'update_users' },
-      { permission_name: 'delete_users' },
+      { permission_name: 'manage_staff' },
       { permission_name: 'manage_roles' },
     ];
 
@@ -35,7 +65,7 @@ export const initializeAdmin = async () => {
       createdPermissions[permData.permission_name] = permission._id;
     }
 
-    // Step 2: Create "Super Admin" role if it doesn't exist
+    // Step 3: Create "Super Admin" role if it doesn't exist
     let superAdminRole = await Role.findOne({ name: 'super admin' });
 
     if (!superAdminRole) {
@@ -48,7 +78,7 @@ export const initializeAdmin = async () => {
       console.log('ℹ️  Role already exists: Super Admin');
     }
 
-    // Step 3: Create main admin if it doesn't exist
+    // Step 4: Create main admin if it doesn't exist
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@laundry.com';
     const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
 

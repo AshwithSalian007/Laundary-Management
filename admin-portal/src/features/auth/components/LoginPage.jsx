@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Input, Button } from '../../../shared/components';
 import useLogin from '../hooks/useLogin';
 
 const LoginPage = () => {

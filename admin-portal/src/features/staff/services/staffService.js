@@ -7,7 +7,8 @@ const staffService = {
       const response = await axiosInstance.get('/admin/staff');
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch staff' };
+      const errorData = error.response?.data || { message: 'Failed to fetch staff' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -17,7 +18,8 @@ const staffService = {
       const response = await axiosInstance.post('/admin/staff', staffData);
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to create staff' };
+      const errorData = error.response?.data || { message: 'Failed to create staff' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -27,7 +29,8 @@ const staffService = {
       const response = await axiosInstance.put(`/admin/staff/${staffId}/role`, { roleId });
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to update staff role' };
+      const errorData = error.response?.data || { message: 'Failed to update staff role' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -37,7 +40,8 @@ const staffService = {
       const response = await axiosInstance.delete(`/admin/staff/${staffId}`);
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to delete staff' };
+      const errorData = error.response?.data || { message: 'Failed to delete staff' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 };

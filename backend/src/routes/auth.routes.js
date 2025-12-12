@@ -13,7 +13,7 @@ import {
   updateRolePermissions,
   deleteRole,
 } from '../controllers/auth.controller.js';
-import { protect, isSuperAdmin } from '../middleware/auth.middleware.js';
+import { protect, isSuperAdmin, canManageStaff, canManageRoles, checkPermission } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
@@ -24,19 +24,21 @@ router.post('/login', login);
 router.get('/me', protect, getMe);
 router.post('/logout', protect, logout);
 
-// Super Admin only routes - Staff Management
-router.post('/staff', protect, isSuperAdmin, createStaff);
-router.get('/staff', protect, isSuperAdmin, getAllStaff);
-router.put('/staff/:id/role', protect, isSuperAdmin, updateStaffRole);
-router.delete('/staff/:id', protect, isSuperAdmin, deleteStaff);
+// Staff Management routes - require 'all' OR 'manage_staff' permission
+router.post('/staff', protect, canManageStaff, createStaff);
+router.get('/staff', protect, canManageStaff, getAllStaff);
+router.put('/staff/:id/role', protect, canManageStaff, updateStaffRole);
+router.delete('/staff/:id', protect, canManageStaff, deleteStaff);
 
-// Super Admin only routes - Role Management
-router.post('/roles', protect, isSuperAdmin, createRole);
-router.get('/roles', protect, isSuperAdmin, getAllRoles);
-router.put('/roles/:id', protect, isSuperAdmin, updateRolePermissions);
-router.delete('/roles/:id', protect, isSuperAdmin, deleteRole);
+// Role Management routes - require 'all' OR 'manage_roles' permission
+router.post('/roles', protect, canManageRoles, createRole);
+// GET roles: Allow 'manage_staff' (to view roles when assigning to staff) AND 'manage_roles' (to manage roles)
+router.get('/roles', protect, checkPermission('manage_staff', 'manage_roles'), getAllRoles);
+router.put('/roles/:id', protect, canManageRoles, updateRolePermissions);
+router.delete('/roles/:id', protect, canManageRoles, deleteRole);
 
-// Super Admin only routes - Permissions
-router.get('/permissions', protect, isSuperAdmin, getAllPermissions);
+// Permissions routes
+// GET permissions: Allow 'manage_roles' (to view permissions when assigning to roles) AND 'all' (super admin)
+router.get('/permissions', protect, checkPermission('all', 'manage_roles'), getAllPermissions);
 
 export default router;

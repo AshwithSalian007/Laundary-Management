@@ -16,17 +16,29 @@ const useLogin = () => {
     try {
       const response = await authService.login(email, password);
 
-      // Check if response has admin data
-      if (!response.admin) {
+      // Check if response has token
+      if (!response.token) {
         throw new Error('Invalid response from server.');
       }
 
-      // Save admin data and token
-      login(response.admin, response.token);
+      // Store token first (needed for /me endpoint)
+      localStorage.setItem('token', response.token);
+
+      // Fetch fresh user data from /me endpoint to get correct permissions format
+      const profileResponse = await authService.getProfile();
+
+      if (!profileResponse.admin) {
+        throw new Error('Failed to fetch user profile.');
+      }
+
+      // Save admin data with correct permissions format
+      login(profileResponse.admin, response.token);
 
       // Navigate to dashboard
       navigate('/dashboard');
     } catch (err) {
+      // Clean up token on error
+      localStorage.removeItem('token');
       setError(err.message || 'Login failed. Please check your credentials.');
     } finally {
       setLoading(false);

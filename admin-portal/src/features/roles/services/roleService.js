@@ -7,7 +7,8 @@ const roleService = {
       const response = await axiosInstance.get('/admin/roles');
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch roles' };
+      const errorData = error.response?.data || { message: 'Failed to fetch roles' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -17,7 +18,8 @@ const roleService = {
       const response = await axiosInstance.get('/admin/permissions');
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to fetch permissions' };
+      const errorData = error.response?.data || { message: 'Failed to fetch permissions' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -27,7 +29,8 @@ const roleService = {
       const response = await axiosInstance.post('/admin/roles', roleData);
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to create role' };
+      const errorData = error.response?.data || { message: 'Failed to create role' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -37,7 +40,8 @@ const roleService = {
       const response = await axiosInstance.put(`/admin/roles/${roleId}`, { permissionIds });
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to update role permissions' };
+      const errorData = error.response?.data || { message: 'Failed to update role permissions' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 
@@ -47,7 +51,8 @@ const roleService = {
       const response = await axiosInstance.delete(`/admin/roles/${roleId}`);
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Failed to delete role' };
+      const errorData = error.response?.data || { message: 'Failed to delete role' };
+      throw { ...errorData, status: error.response?.status };
     }
   },
 };

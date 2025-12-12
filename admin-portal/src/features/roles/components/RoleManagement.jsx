@@ -8,6 +8,7 @@ const RoleManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [hasPermission, setHasPermission] = useState(true);
 
   // Form states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -33,8 +34,18 @@ const RoleManagement = () => {
       setRoles(rolesRes.roles || []);
       setPermissions(permissionsRes.permissions || []);
       setError('');
+      setHasPermission(true);
     } catch (err) {
-      setError(err.message || 'Failed to fetch data');
+      // Check if it's a permission denied error (403 status or "Access denied" message)
+      const isPermissionError = err.status === 403 ||
+                                (err.message && err.message.toLowerCase().includes('access denied'));
+
+      if (isPermissionError) {
+        setHasPermission(false);
+        setError(err.message || 'Access denied. You do not have permission to view this page.');
+      } else {
+        setError(err.message || 'Failed to fetch data');
+      }
     } finally {
       setLoading(false);
     }
@@ -115,6 +126,20 @@ const RoleManagement = () => {
       <DashboardLayout>
         <div className="flex justify-center items-center h-64">
           <div className="text-gray-600">Loading...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show permission denied page if user doesn't have access
+  if (!hasPermission) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <h1 className="text-2xl font-bold text-gray-900">Role Management</h1>
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
         </div>
       </DashboardLayout>
     );
