@@ -8,6 +8,7 @@ import cors from 'cors';
 import connectDB from './config/database.js';
 import redis from './config/redis.js';
 import authRoutes from './routes/auth.routes.js';
+import departmentRoutes from './routes/department.routes.js';
 import { initializeAdmin } from './scripts/initializeAdmin.js';
 
 // Create Express app
@@ -61,6 +62,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+// Mount more specific routes first
+app.use('/api/admin/departments', departmentRoutes);
 app.use('/api/admin', authRoutes);
 
 // Health check route (includes Redis status)

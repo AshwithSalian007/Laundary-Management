@@ -130,3 +130,7 @@ export const canManageStaff = checkPermission('manage_staff');
 // Middleware to check if admin can manage roles
 // Checks for 'manage_roles' permission, but 'all' permission bypasses (line 103)
 export const canManageRoles = checkPermission('manage_roles');
+
+// Middleware to check if admin can manage departments
+// Checks for 'manage_departments' permission, but 'all' permission bypasses (line 103)
+export const canManageDepartments = checkPermission('manage_departments');

@@ -6,6 +6,9 @@ const departmentSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Please provide department name'],
       trim: true,
+    },
+    name_lowercase: {
+      type: String,
       unique: true,
     },
     duration_years: {
@@ -26,8 +29,17 @@ const departmentSchema = new mongoose.Schema(
   }
 );
 
+// Pre-save hook to create lowercase name for case-insensitive uniqueness
+departmentSchema.pre('save', function(next) {
+  if (this.isModified('name')) {
+    this.name_lowercase = this.name.toLowerCase();
+  }
+  next();
+});
+
 // Index for faster queries
 departmentSchema.index({ isDeleted: 1 });
+departmentSchema.index({ name_lowercase: 1 });
 
 // Query helper to exclude soft-deleted documents
 departmentSchema.query.notDeleted = function() {

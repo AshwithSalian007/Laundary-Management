@@ -4,6 +4,7 @@ import LoginPage from './features/auth/components/LoginPage'
 import Dashboard from './features/dashboard/components/Dashboard'
 import StaffManagement from './features/staff/components/StaffManagement'
 import RoleManagement from './features/roles/components/RoleManagement'
+import DepartmentManagement from './features/departments/components/DepartmentManagement'
 import LoadingSpinner from './shared/components/LoadingSpinner'
 
 function App() {
@@ -33,6 +34,11 @@ function App() {
       <Route
         path="/roles"
         element={isAuthenticated ? <RoleManagement /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/departments"
+        element={isAuthenticated ? <DepartmentManagement /> : <Navigate to="/login" replace />}
       />
 
       <Route path="*" element={<Navigate to="/login" replace />} />
