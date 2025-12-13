@@ -374,9 +374,13 @@ const BatchManagement = () => {
                     Year {batch.current_year}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {batch.years?.[0]?.start_date && batch.years?.[0]?.end_date
-                      ? `${formatDate(batch.years[0].start_date)} to ${formatDate(batch.years[0].end_date)}`
-                      : 'Dates not set'}
+                    {batch.years?.[0]?.start_date
+                      ? `${formatDate(batch.years[0].start_date)} to ${
+                          batch.years[0]?.end_date
+                            ? formatDate(batch.years[0].end_date)
+                            : 'Not set'
+                        }`
+                      : 'Start date not set'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
