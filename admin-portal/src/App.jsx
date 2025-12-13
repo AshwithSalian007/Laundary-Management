@@ -5,6 +5,7 @@ import Dashboard from './features/dashboard/components/Dashboard'
 import StaffManagement from './features/staff/components/StaffManagement'
 import RoleManagement from './features/roles/components/RoleManagement'
 import DepartmentManagement from './features/departments/components/DepartmentManagement'
+import BatchManagement from './features/batches/components/BatchManagement'
 import LoadingSpinner from './shared/components/LoadingSpinner'
 
 function App() {
@@ -39,6 +40,11 @@ function App() {
       <Route
         path="/departments"
         element={isAuthenticated ? <DepartmentManagement /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/batches"
+        element={isAuthenticated ? <BatchManagement /> : <Navigate to="/login" replace />}
       />
 
       <Route path="*" element={<Navigate to="/login" replace />} />

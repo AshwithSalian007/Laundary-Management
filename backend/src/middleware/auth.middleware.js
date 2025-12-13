@@ -134,3 +134,7 @@ export const canManageRoles = checkPermission('manage_roles');
 // Middleware to check if admin can manage departments
 // Checks for 'manage_departments' permission, but 'all' permission bypasses (line 103)
 export const canManageDepartments = checkPermission('manage_departments');
+
+// Middleware to check if admin can manage batches
+// Checks for 'manage_batches' permission, but 'all' permission bypasses (line 103)
+export const canManageBatches = checkPermission('manage_batches');

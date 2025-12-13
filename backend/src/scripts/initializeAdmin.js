@@ -49,6 +49,7 @@ export const initializeAdmin = async () => {
       { permission_name: 'manage_staff' },
       { permission_name: 'manage_roles' },
       { permission_name: 'manage_departments' },
+      { permission_name: 'manage_batches' },
     ];
 
     const createdPermissions = {};

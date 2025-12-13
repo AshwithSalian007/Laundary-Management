@@ -53,19 +53,13 @@ const studentSchema = new mongoose.Schema(
       ref: 'Batch',
       required: [true, 'Please assign student to a batch'],
     },
-    current_year: {
-      type: Number,
-      required: [true, 'Please provide current year'],
-      min: [1, 'Year must be at least 1'],
-      max: [6, 'Year cannot exceed 6'],
-      default: 1,
-    },
 
-    // Status field
-    status: {
+    // Hostel status field
+    hostel_status: {
       type: String,
-      enum: ['active', 'inactive', 'graduated'],
+      enum: ['active', 'dropped', 'completed'],
       default: 'active',
+      required: [true, 'Please provide hostel status'],
     },
 
     // Soft delete flag
@@ -106,7 +100,7 @@ studentSchema.methods.comparePassword = async function (candidatePassword) {
 
 // Indexes for faster queries
 studentSchema.index({ batch_id: 1, isDeleted: 1 });
-studentSchema.index({ status: 1, isDeleted: 1 });
+studentSchema.index({ hostel_status: 1, isDeleted: 1 });
 studentSchema.index({ isDeleted: 1 });
 studentSchema.index({ email: 1 });
 studentSchema.index({ registration_number: 1 });

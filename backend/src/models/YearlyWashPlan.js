@@ -7,10 +7,10 @@ const yearlyWashPlanSchema = new mongoose.Schema(
       ref: 'Student',
       required: [true, 'Please provide student'],
     },
-    batch_year_id: {
+    batch_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'BatchYear',
-      required: [true, 'Please provide batch year'],
+      ref: 'Batch',
+      required: [true, 'Please provide batch'],
     },
     year_no: {
       type: Number,
@@ -74,9 +74,10 @@ yearlyWashPlanSchema.pre('save', function(next) {
   next();
 });
 
-// Compound index to ensure unique plan per student per year
-yearlyWashPlanSchema.index({ student_id: 1, batch_year_id: 1 }, { unique: true });
+// Compound index to ensure unique plan per student per year per batch
+yearlyWashPlanSchema.index({ student_id: 1, batch_id: 1, year_no: 1 }, { unique: true });
 yearlyWashPlanSchema.index({ student_id: 1, is_active: 1, isDeleted: 1 });
+yearlyWashPlanSchema.index({ batch_id: 1, year_no: 1, isDeleted: 1 });
 yearlyWashPlanSchema.index({ isDeleted: 1 });
 
 // Query helper to exclude soft-deleted documents

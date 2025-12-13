@@ -39,7 +39,7 @@ departmentSchema.pre('save', function(next) {
 
 // Index for faster queries
 departmentSchema.index({ isDeleted: 1 });
-departmentSchema.index({ name_lowercase: 1 });
+// Note: name_lowercase already has unique: true in schema, so no need to add index here
 
 // Query helper to exclude soft-deleted documents
 departmentSchema.query.notDeleted = function() {

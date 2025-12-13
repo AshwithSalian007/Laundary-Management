@@ -17,7 +17,7 @@ export const getAllDepartments = async (req, res) => {
     res.status(200).json({
       success: true,
       count: departments.length,
-      departments,
+      data: departments,
     });
   } catch (error) {
     console.error('Get departments error:', error);
@@ -66,7 +66,7 @@ export const createDepartment = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Department created successfully',
-      department,
+      data: department,
     });
   } catch (error) {
     console.error('Create department error:', error);
@@ -144,7 +144,7 @@ export const updateDepartment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Department updated successfully',
-      department,
+      data: department,
     });
   } catch (error) {
     console.error('Update department error:', error);
@@ -252,7 +252,7 @@ export const restoreDepartment = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Department restored successfully',
-      department,
+      data: department,
     });
   } catch (error) {
     console.error('Restore department error:', error);
