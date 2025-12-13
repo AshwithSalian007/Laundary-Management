@@ -58,11 +58,11 @@ export const createBatch = async (req, res) => {
       year_1_end_date
     } = req.body;
 
-    // Validation: Check required fields
-    if (!department_id || !start_year || !end_year || !year_1_start_date || !year_1_end_date) {
+    // Validation: Check required fields (end_date is optional)
+    if (!department_id || !start_year || !end_year || !year_1_start_date) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields: department, start year, end year, and year 1 dates',
+        message: 'Please provide all required fields: department, start year, end year, and year 1 start date',
       });
     }
 
@@ -94,20 +94,32 @@ export const createBatch = async (req, res) => {
 
     // Validate year 1 dates
     const year1Start = new Date(year_1_start_date);
-    const year1End = new Date(year_1_end_date);
 
-    if (isNaN(year1Start.getTime()) || isNaN(year1End.getTime())) {
+    if (isNaN(year1Start.getTime())) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid date format for year 1 dates',
+        message: 'Invalid date format for year 1 start date',
       });
     }
 
-    if (year1End <= year1Start) {
-      return res.status(400).json({
-        success: false,
-        message: 'Year 1 end date must be after start date',
-      });
+    // Validate year 1 end date if provided
+    let year1End = null;
+    if (year_1_end_date) {
+      year1End = new Date(year_1_end_date);
+
+      if (isNaN(year1End.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date format for year 1 end date',
+        });
+      }
+
+      if (year1End <= year1Start) {
+        return res.status(400).json({
+          success: false,
+          message: 'Year 1 end date must be after start date',
+        });
+      }
     }
 
     // Fetch department to get duration
@@ -152,11 +164,11 @@ export const createBatch = async (req, res) => {
     // Generate years array
     const years = [];
 
-    // Year 1: Use provided dates
+    // Year 1: Use provided dates (end_date may be null)
     years.push({
       year_no: 1,
       start_date: year1Start,
-      end_date: year1End
+      end_date: year1End // Can be null
     });
 
     // Years 2-N: Auto-generate with null dates
@@ -260,31 +272,46 @@ export const updateBatch = async (req, res) => {
         });
       }
 
-      // Check if both dates are provided together (CRITICAL FIX #1)
-      if ((year.start_date && !year.end_date) || (!year.start_date && year.end_date)) {
+      // Start date is required if end date is provided
+      if (!year.start_date && year.end_date) {
         return res.status(400).json({
           success: false,
-          message: `Year ${year.year_no}: Both start date and end date must be provided together`,
+          message: `Year ${year.year_no}: Start date is required when end date is provided`,
         });
       }
 
-      // If dates are provided, validate them
-      if (year.start_date && year.end_date) {
+      // If start date is provided, validate it
+      if (year.start_date) {
         const startDate = new Date(year.start_date);
-        const endDate = new Date(year.end_date);
 
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        if (isNaN(startDate.getTime())) {
           return res.status(400).json({
             success: false,
-            message: `Invalid date format for year ${year.year_no}`,
+            message: `Invalid date format for year ${year.year_no} start date`,
+          });
+        }
+      }
+
+      // If end date is provided, validate it
+      if (year.end_date) {
+        const endDate = new Date(year.end_date);
+
+        if (isNaN(endDate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: `Invalid date format for year ${year.year_no} end date`,
           });
         }
 
-        if (endDate <= startDate) {
-          return res.status(400).json({
-            success: false,
-            message: `Year ${year.year_no}: End date must be after start date`,
-          });
+        // If both dates exist, ensure end_date > start_date
+        if (year.start_date) {
+          const startDate = new Date(year.start_date);
+          if (endDate <= startDate) {
+            return res.status(400).json({
+              success: false,
+              message: `Year ${year.year_no}: End date must be after start date`,
+            });
+          }
         }
       }
     }

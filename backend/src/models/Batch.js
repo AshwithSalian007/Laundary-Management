@@ -134,18 +134,18 @@ batchSchema.pre('save', function(next) {
 batchSchema.pre('save', function(next) {
   if (this.isModified('years')) {
     for (const year of this.years) {
-      // Only validate if both dates are provided
+      // If end_date is provided without start_date, that's an error
+      if (!year.start_date && year.end_date) {
+        next(new Error(`Year ${year.year_no}: Start date is required when end date is provided`));
+        return;
+      }
+
+      // If both dates are provided, validate end_date > start_date
       if (year.start_date && year.end_date) {
-        // Check end_date > start_date for each year
         if (year.end_date <= year.start_date) {
           next(new Error(`Year ${year.year_no}: End date must be after start date`));
           return;
         }
-      }
-      // If only one date is provided, that's an error
-      else if (year.start_date || year.end_date) {
-        next(new Error(`Year ${year.year_no}: Both start date and end date must be provided together`));
-        return;
       }
     }
 

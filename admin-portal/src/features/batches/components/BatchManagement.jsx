@@ -99,13 +99,15 @@ const BatchManagement = () => {
         return;
       }
 
-      // Validate dates
-      const year1Start = new Date(createFormData.year_1_start_date);
-      const year1End = new Date(createFormData.year_1_end_date);
+      // Validate dates (end_date is optional)
+      if (createFormData.year_1_end_date) {
+        const year1Start = new Date(createFormData.year_1_start_date);
+        const year1End = new Date(createFormData.year_1_end_date);
 
-      if (year1End <= year1Start) {
-        setError('Year 1 end date must be after start date');
-        return;
+        if (year1End <= year1Start) {
+          setError('Year 1 end date must be after start date');
+          return;
+        }
       }
 
       await batchService.createBatch(createFormData);
@@ -115,7 +117,7 @@ const BatchManagement = () => {
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to create batch');
+      setError(err.response?.data?.message || err.message || 'Failed to create batch');
     }
   };
 
@@ -128,17 +130,13 @@ const BatchManagement = () => {
       for (let i = 0; i < editYearsData.length; i++) {
         const year = editYearsData[i];
 
-        // Check if both dates are provided together
-        if (year.start_date && !year.end_date) {
-          setError(`Year ${year.year_no}: Please provide end date along with start date`);
-          return;
-        }
+        // Start date is required if end date is provided
         if (!year.start_date && year.end_date) {
-          setError(`Year ${year.year_no}: Please provide start date along with end date`);
+          setError(`Year ${year.year_no}: Start date is required when end date is provided`);
           return;
         }
 
-        // If dates are provided, validate them
+        // If both dates are provided, validate end_date > start_date
         if (year.start_date && year.end_date) {
           const startDate = new Date(year.start_date);
           const endDate = new Date(year.end_date);
@@ -150,20 +148,20 @@ const BatchManagement = () => {
         }
       }
 
-      // Validate year sequence - each year must start after previous year ends
-      for (let i = 0; i < editYearsData.length - 1; i++) {
-        const currentYear = editYearsData[i];
-        const nextYear = editYearsData[i + 1];
+      // Validate no overlapping dates between ANY years (not just consecutive)
+      const yearsWithDates = editYearsData.filter(y => y.start_date && y.end_date);
 
-        // Only validate if both years have dates
-        if (currentYear.start_date && currentYear.end_date &&
-            nextYear.start_date && nextYear.end_date) {
-          const currentEndDate = new Date(currentYear.end_date);
-          const nextStartDate = new Date(nextYear.start_date);
+      for (let i = 0; i < yearsWithDates.length - 1; i++) {
+        for (let j = i + 1; j < yearsWithDates.length; j++) {
+          const yearA = yearsWithDates[i];
+          const yearB = yearsWithDates[j];
+          const endDateA = new Date(yearA.end_date);
+          const startDateB = new Date(yearB.start_date);
 
-          if (currentEndDate >= nextStartDate) {
+          // Check if dates overlap or don't have minimum 1 day gap
+          if (endDateA >= startDateB) {
             setError(
-              `Year ${currentYear.year_no} end date (${formatDate(currentYear.end_date)}) must be before Year ${nextYear.year_no} start date (${formatDate(nextYear.start_date)}). Minimum 1 day gap required.`
+              `Year ${yearA.year_no} end date (${formatDate(yearA.end_date)}) must be before Year ${yearB.year_no} start date (${formatDate(yearB.start_date)}). Minimum 1 day gap required.`
             );
             return;
           }
@@ -180,7 +178,7 @@ const BatchManagement = () => {
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to update batch');
+      setError(err.response?.data?.message || err.message || 'Failed to update batch');
     }
   };
 
@@ -195,7 +193,7 @@ const BatchManagement = () => {
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to archive batch');
+      setError(err.response?.data?.message || err.message || 'Failed to archive batch');
     }
   };
 
@@ -210,11 +208,12 @@ const BatchManagement = () => {
       fetchData();
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
-      setError(err.message || 'Failed to restore batch');
+      setError(err.response?.data?.message || err.message || 'Failed to restore batch');
     }
   };
 
   const openEditModal = (batch) => {
+    setError('');
     setSelectedBatch(batch);
     // Deep copy years array for editing
     setEditYearsData(
@@ -314,7 +313,10 @@ const BatchManagement = () => {
               {showArchived ? 'Show Active' : 'Show Archived'}
             </button>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => {
+                setError('');
+                setShowCreateModal(true);
+              }}
               className="px-4 py-2 bg-[#228B22] text-white rounded-lg hover:bg-[#4CAF50] transition-colors"
             >
               + Add Batch
@@ -429,6 +431,14 @@ const BatchManagement = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
               <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Batch</h2>
+
+              {/* Error message inside modal */}
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={handleCreateBatch} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -521,11 +531,10 @@ const BatchManagement = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
+                        End Date <span className="text-gray-500 text-xs">(Optional)</span>
                       </label>
                       <input
                         type="date"
-                        required
                         value={createFormData.year_1_end_date}
                         onChange={(e) =>
                           setCreateFormData({
@@ -553,6 +562,7 @@ const BatchManagement = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      setError('');
                       setShowCreateModal(false);
                       resetCreateForm();
                     }}
@@ -578,6 +588,13 @@ const BatchManagement = () => {
                 {selectedBatch.current_year}
               </p>
 
+              {/* Error message inside modal */}
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {error}
+                </div>
+              )}
+
               <form onSubmit={handleUpdateBatch} className="space-y-4">
                 <div className="space-y-4">
                   {editYearsData.map((year, index) => (
@@ -591,7 +608,7 @@ const BatchManagement = () => {
                       <div className="grid grid-cols-2 gap-3">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Start Date
+                            Start Date <span className="text-gray-500 text-xs">(Optional)</span>
                           </label>
                           <input
                             type="date"
@@ -604,7 +621,7 @@ const BatchManagement = () => {
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
-                            End Date
+                            End Date <span className="text-gray-500 text-xs">(Optional)</span>
                           </label>
                           <input
                             type="date"
@@ -630,6 +647,7 @@ const BatchManagement = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      setError('');
                       setShowEditModal(false);
                       setSelectedBatch(null);
                       setEditYearsData([]);
