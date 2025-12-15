@@ -68,6 +68,16 @@ const studentSchema = new mongoose.Schema(
       default: false,
     },
 
+    // Email verification
+    email_verified: {
+      type: Boolean,
+      default: false,
+    },
+    email_verified_at: {
+      type: Date,
+      default: null,
+    },
+
     lastLogin: {
       type: Date,
     },
