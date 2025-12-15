@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   login,
+  studentLogin,
   createStaff,
   getMe,
   logout,
@@ -18,7 +19,8 @@ import { protect, isSuperAdmin, canManageStaff, canManageRoles, checkPermission 
 const router = express.Router();
 
 // Public routes
-router.post('/login', login);
+router.post('/login', login); // Admin login
+router.post('/student/login', studentLogin); // Student login
 
 // Protected routes (require authentication)
 router.get('/me', protect, getMe);

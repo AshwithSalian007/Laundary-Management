@@ -31,8 +31,6 @@ const StudentManagement = () => {
   const [selectedStudent, setSelectedStudent] = useState(null);
 
   // OTP verification state
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpVerified, setOtpVerified] = useState(false);
   const [sendingOTP, setSendingOTP] = useState(false);
 
   // Form data for create (Step 1: Basic Info)
@@ -118,40 +116,18 @@ const StudentManagement = () => {
     }
   };
 
-  // Handle send OTP
-  const handleSendOTP = async () => {
-    try {
-      setError('');
-      setSendingOTP(true);
+  // State for verification modal
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [studentPassword, setStudentPassword] = useState('');
+  const [createdStudentEmail, setCreatedStudentEmail] = useState('');
+  const [createdStudentName, setCreatedStudentName] = useState('');
 
-      // Validate email
-      if (!createFormData.email) {
-        setError('Please enter email address');
-        return;
-      }
-
-      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-      if (!emailRegex.test(createFormData.email)) {
-        setError('Please enter a valid email address');
-        return;
-      }
-
-      await otpService.sendVerificationOTP(createFormData.email);
-      setOtpSent(true);
-      setSuccess('OTP sent to email successfully!');
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to send OTP');
-    } finally {
-      setSendingOTP(false);
-    }
-  };
-
-  // Handle create student (Step 2: Verify OTP and Create)
+  // Handle create student (Step 1: Create student and send OTP)
   const handleCreateStudent = async (e) => {
     e.preventDefault();
     try {
       setError('');
+      setLoading(true);
 
       // Validate all fields
       if (
@@ -164,16 +140,7 @@ const StudentManagement = () => {
         !createFormData.batch_id
       ) {
         setError('Please fill in all required fields');
-        return;
-      }
-
-      if (!otpSent) {
-        setError('Please send OTP first');
-        return;
-      }
-
-      if (!otpInput) {
-        setError('Please enter the OTP');
+        setLoading(false);
         return;
       }
 
@@ -181,28 +148,89 @@ const StudentManagement = () => {
       const phoneRegex = /^[6-9]\d{9}$/;
       if (!phoneRegex.test(createFormData.phone_number)) {
         setError('Please enter a valid 10-digit Indian phone number starting with 6-9');
+        setLoading(false);
         return;
       }
 
       // Validate password length
       if (createFormData.password.length < 6) {
         setError('Password must be at least 6 characters');
+        setLoading(false);
         return;
       }
 
-      // Create student with OTP
-      await studentService.createStudent({
-        ...createFormData,
-        otp: otpInput,
-      });
+      // Step 1: Create student (without OTP)
+      const createResponse = await studentService.createStudent(createFormData);
 
-      setSuccess('Student created successfully!');
+      // Store password from response (for welcome email later)
+      setStudentPassword(createResponse.password);
+      setCreatedStudentEmail(createFormData.email);
+      setCreatedStudentName(createFormData.name);
+
+      // Step 2: Send OTP
+      await otpService.sendVerificationOTP(createFormData.email);
+
+      // Step 3: Close create modal and show verification modal
       setShowCreateModal(false);
-      resetCreateForm();
-      fetchData();
-      setTimeout(() => setSuccess(''), 3000);
+      setShowVerifyModal(true);
+
+      setLoading(false);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to create student');
+      setLoading(false);
+    }
+  };
+
+  // Handle verify email with OTP (Step 2)
+  const handleVerifyEmail = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      setLoading(true);
+
+      if (!otpInput || otpInput.length !== 6) {
+        setError('Please enter a valid 6-digit OTP');
+        setLoading(false);
+        return;
+      }
+
+      // Verify OTP and send password for welcome email
+      const response = await otpService.verifyEmailOTP({
+        email: createdStudentEmail,
+        otp: otpInput,
+        password: studentPassword,
+      });
+
+      // Check if there's a warning about welcome email
+      if (response.warning) {
+        setSuccess(`Student created and email verified! Warning: ${response.warning}`);
+      } else {
+        setSuccess('Student created and email verified successfully!');
+      }
+
+      setShowVerifyModal(false);
+      resetCreateForm();
+      fetchData();
+      setTimeout(() => setSuccess(''), 5000); // 5 seconds for warnings
+      setLoading(false);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to verify OTP');
+      setLoading(false);
+    }
+  };
+
+  // Handle resend OTP
+  const handleResendOTP = async () => {
+    try {
+      setError('');
+      setSendingOTP(true);
+      await otpService.sendVerificationOTP(createdStudentEmail);
+      setSuccess('OTP resent successfully!');
+      setTimeout(() => setSuccess(''), 3000);
+      setSendingOTP(false);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to resend OTP');
+      setSendingOTP(false);
     }
   };
 
@@ -311,8 +339,9 @@ const StudentManagement = () => {
       hostel_status: 'active',
     });
     setOtpInput('');
-    setOtpSent(false);
-    setOtpVerified(false);
+    setStudentPassword('');
+    setCreatedStudentEmail('');
+    setCreatedStudentName('');
     setBatches([]);
   };
 
@@ -491,16 +520,7 @@ const StudentManagement = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Add New Student</h2>
                 <div className="text-sm text-gray-500">
-                  {otpSent ? (
-                    <span className="flex items-center text-green-600">
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      OTP Sent
-                    </span>
-                  ) : (
-                    <span>Step 1: Enter Details</span>
-                  )}
+                  <span>Step 1: Enter Details</span>
                 </div>
               </div>
 
@@ -554,71 +574,18 @@ const StudentManagement = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Email <span className="text-red-500">*</span>
                       </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="email"
-                          required
-                          value={createFormData.email}
-                          onChange={(e) =>
-                            setCreateFormData({ ...createFormData, email: e.target.value })
-                          }
-                          disabled={otpSent}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22] disabled:bg-gray-100 disabled:cursor-not-allowed"
-                        />
-                        {!otpSent && (
-                          <button
-                            type="button"
-                            onClick={handleSendOTP}
-                            disabled={sendingOTP || !createFormData.email}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium"
-                          >
-                            {sendingOTP ? 'Sending...' : 'Send OTP'}
-                          </button>
-                        )}
-                        {otpSent && (
-                          <span className="flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-lg">
-                            <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            Sent
-                          </span>
-                        )}
-                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={createFormData.email}
+                        onChange={(e) =>
+                          setCreateFormData({ ...createFormData, email: e.target.value })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22]"
+                      />
                     </div>
                   </div>
                 </div>
-
-                {/* OTP Verification Section - Show only after OTP is sent */}
-                {otpSent && (
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <h3 className="text-lg font-semibold text-blue-900 mb-3 flex items-center">
-                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      Email Verification
-                    </h3>
-                    <div>
-                      <label className="block text-sm font-medium text-blue-900 mb-2">
-                        Enter OTP Code <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={otpInput}
-                        onChange={(e) => setOtpInput(e.target.value)}
-                        maxLength="6"
-                        placeholder="Enter 6-digit OTP"
-                        className="w-full px-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-mono text-center"
-                      />
-                      <p className="text-sm text-blue-700 mt-2 flex items-center">
-                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                        Check the student's email ({createFormData.email}) for the verification code
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Contact & Academic Information */}
                 <div>
@@ -754,24 +721,9 @@ const StudentManagement = () => {
                 <div className="flex space-x-3 pt-4 border-t border-gray-200">
                   <button
                     type="submit"
-                    disabled={!otpSent}
-                    className="flex-1 px-6 py-3 bg-[#228B22] text-white rounded-lg hover:bg-[#4CAF50] transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed font-medium flex items-center justify-center"
+                    className="flex-1 px-6 py-3 bg-[#228B22] text-white rounded-lg hover:bg-[#4CAF50] transition-colors font-medium flex items-center justify-center"
                   >
-                    {!otpSent ? (
-                      <>
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Send OTP First
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                        </svg>
-                        Create Student
-                      </>
-                    )}
+                    <span>Next →</span>
                   </button>
                   <button
                     type="button"
@@ -785,6 +737,101 @@ const StudentManagement = () => {
                     Cancel
                   </button>
                 </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Verify Email Modal - Step 2 */}
+        {showVerifyModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Verify Email</h2>
+                <div className="text-sm text-gray-500">
+                  <span>Step 2: Email Verification</span>
+                </div>
+              </div>
+
+              {/* Error/Success messages */}
+              {error && (
+                <div className="bg-red-50 border-l-4 border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                    </svg>
+                    {error}
+                  </div>
+                </div>
+              )}
+              {success && (
+                <div className="bg-green-50 border-l-4 border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    {success}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <p className="text-sm text-gray-600 mb-2">
+                  <strong>Student:</strong> {createdStudentName}
+                </p>
+                <p className="text-sm text-gray-600 mb-4">
+                  <strong>Email:</strong> {createdStudentEmail}
+                </p>
+                <p className="text-sm text-blue-700 bg-blue-50 p-3 rounded">
+                  An OTP has been sent to the student's email address. Please enter the 6-digit code below.
+                </p>
+              </div>
+
+              <form onSubmit={handleVerifyEmail} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Enter OTP <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={otpInput}
+                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
+                    maxLength="6"
+                    placeholder="Enter 6-digit OTP"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22] text-lg font-mono text-center"
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 px-6 py-3 bg-[#228B22] text-white rounded-lg hover:bg-[#4CAF50] transition-colors disabled:bg-gray-400 font-medium"
+                  >
+                    {loading ? 'Verifying...' : 'Verify Email'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleResendOTP}
+                    disabled={sendingOTP}
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400 font-medium"
+                  >
+                    {sendingOTP ? 'Resending...' : 'Resend OTP'}
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowVerifyModal(false);
+                    setOtpInput('');
+                    setError('');
+                  }}
+                  className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
               </form>
             </div>
           </div>

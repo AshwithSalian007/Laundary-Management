@@ -26,7 +26,6 @@ const otpSchema = new mongoose.Schema(
     expires_at: {
       type: Date,
       required: [true, 'Expiry time is required'],
-      index: { expires: 0 }, // TTL index - auto-delete expired documents
     },
     is_used: {
       type: Boolean,
@@ -61,7 +60,9 @@ otpSchema.methods.verifyOTP = async function(candidateOTP) {
 
 // Index for faster queries
 otpSchema.index({ user_email: 1, otp_type: 1 });
-otpSchema.index({ expires_at: 1 });
+
+// TTL index - MongoDB will automatically delete documents when expires_at time is reached
+otpSchema.index({ expires_at: 1 }, { expireAfterSeconds: 0 });
 
 const OTP = mongoose.model('OTP', otpSchema);
 

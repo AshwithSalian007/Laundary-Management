@@ -1,12 +1,12 @@
 import rateLimit from 'express-rate-limit';
 
 /**
- * Rate limiter for OTP sending endpoints
- * Prevents abuse by limiting the number of OTP requests per IP
+ * Rate limiter for OTP sending endpoints (Admin-initiated)
+ * More lenient for admins managing student verification
  */
 export const otpRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 OTP requests per windowMs
+  max: 10, // Limit each IP to 10 OTP requests per windowMs (admin-friendly)
   message: {
     success: false,
     message: 'Too many OTP requests from this IP. Please try again after 15 minutes.',

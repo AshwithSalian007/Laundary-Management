@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import Admin from '../models/Admin.js';
+import Student from '../models/Student.js';
 import Role from '../models/Role.js';
 import Permission from '../models/Permission.js';
 import { redisAuth } from '../config/redis.js';
@@ -776,6 +777,104 @@ export const deleteRole = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error while deleting role',
+      error: error.message,
+    });
+  }
+};
+
+// ==================== STUDENT AUTHENTICATION ====================
+
+// Generate simple JWT token for students (no roles/permissions)
+const generateStudentToken = (studentId) => {
+  return jwt.sign(
+    { id: studentId, type: 'student' },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' } // Students get 7-day tokens
+  );
+};
+
+// @desc    Login student
+// @route   POST /api/auth/student/login
+// @access  Public
+export const studentLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validation
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and password',
+      });
+    }
+
+    // Find student and include password field
+    const student = await Student.findOne({ email: email.toLowerCase() })
+      .select('+password')
+      .populate({
+        path: 'batch_id',
+        select: 'batch_label department_id',
+        populate: {
+          path: 'department_id',
+          select: 'name',
+        },
+      });
+
+    if (!student) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Check if student is deleted
+    if (student.isDeleted) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact administrator.',
+      });
+    }
+
+    // CHECK: Email must be verified before login
+    if (!student.email_verified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before logging in. Contact administrator if you need help.',
+      });
+    }
+
+    // Compare password
+    const isPasswordMatch = await student.comparePassword(password);
+
+    if (!isPasswordMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials',
+      });
+    }
+
+    // Generate JWT token
+    const token = generateStudentToken(student._id);
+
+    // Update last login
+    student.lastLogin = new Date();
+    await student.save();
+
+    // Remove password from response
+    const studentResponse = student.toObject();
+    delete studentResponse.password;
+
+    res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      token,
+      student: studentResponse,
+    });
+  } catch (error) {
+    console.error('Student login error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during login',
       error: error.message,
     });
   }

@@ -1,9 +1,8 @@
 import OTP from '../models/OTP.js';
 import Student from '../models/Student.js';
-import { sendOTPEmail } from '../services/email.service.js';
+import { sendOTPEmail, sendWelcomeEmail } from '../services/email.service.js';
 import {
   isValidEmail,
-  sanitizeEmail,
   validatePassword,
   PASSWORD_CONSTRAINTS,
 } from '../utils/validation.js';
@@ -16,9 +15,9 @@ const generateOTPCode = () => {
 };
 
 /**
- * @desc    Send OTP for email verification (for new student creation)
+ * @desc    Send OTP for email verification (for newly created student)
  * @route   POST /api/otp/send-verification
- * @access  Public
+ * @access  Private (Admin only - requires 'all' or 'manage_students' permission)
  */
 export const sendEmailVerificationOTP = async (req, res) => {
   try {
@@ -39,12 +38,23 @@ export const sendEmailVerificationOTP = async (req, res) => {
       });
     }
 
-    // Check if email already exists (for new student creation, email should NOT exist)
-    const existingStudent = await Student.findOne({ email: email.toLowerCase() });
-    if (existingStudent) {
+    // Check if student exists with this email (exclude soft-deleted students)
+    const existingStudent = await Student.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
+    if (!existingStudent) {
+      return res.status(404).json({
+        success: false,
+        message: 'No student found with this email',
+      });
+    }
+
+    // Check if email is already verified
+    if (existingStudent.email_verified) {
       return res.status(400).json({
         success: false,
-        message: 'A student with this email already exists',
+        message: 'This email is already verified',
       });
     }
 
@@ -56,7 +66,7 @@ export const sendEmailVerificationOTP = async (req, res) => {
 
     // Generate new OTP
     const otpCode = generateOTPCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
 
     // Save OTP
     const otp = await OTP.create({
@@ -112,8 +122,11 @@ export const sendPasswordResetOTP = async (req, res) => {
       });
     }
 
-    // Check if student exists
-    const student = await Student.findOne({ email: email.toLowerCase() });
+    // Check if student exists (exclude soft-deleted students)
+    const student = await Student.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
     if (!student) {
       return res.status(404).json({
         success: false,
@@ -129,7 +142,7 @@ export const sendPasswordResetOTP = async (req, res) => {
 
     // Generate new OTP
     const otpCode = generateOTPCode();
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000); // 20 minutes
 
     // Save OTP
     const otpRecord = await OTP.create({
@@ -238,11 +251,11 @@ export const resetPassword = async (req, res) => {
       });
     }
 
-    // Delete OTP immediately after successful verification (cleanup)
-    await OTP.deleteOne({ _id: otpRecord._id });
-
-    // Update student password
-    const student = await Student.findOne({ email: email.toLowerCase() });
+    // Find student first (exclude soft-deleted students)
+    const student = await Student.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
     if (!student) {
       return res.status(404).json({
         success: false,
@@ -250,8 +263,12 @@ export const resetPassword = async (req, res) => {
       });
     }
 
+    // Update student password
     student.password = new_password;
     await student.save();
+
+    // Delete OTP only after successful password update
+    await OTP.deleteOne({ _id: otpRecord._id });
 
     res.status(200).json({
       success: true,
@@ -262,6 +279,128 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to reset password',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Verify email with OTP (for newly created students)
+ * @route   POST /api/otp/verify-email
+ * @access  Private (Admin only - requires 'all' or 'manage_students' permission)
+ */
+export const verifyEmailOTP = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and OTP',
+      });
+    }
+
+    // Find student with this email (exclude soft-deleted students)
+    const student = await Student.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found',
+      });
+    }
+
+    // Check if email is already verified
+    if (student.email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified',
+      });
+    }
+
+    // Find OTP record
+    const otpRecord = await OTP.findOne({
+      user_email: email.toLowerCase(),
+      otp_type: 'email_verification',
+      is_used: false,
+    }).sort({ createdAt: -1 });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found or OTP has expired',
+      });
+    }
+
+    // Check if OTP expired
+    if (new Date() > otpRecord.expires_at) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired. Please request a new one',
+      });
+    }
+
+    // Check attempts limit
+    if (otpRecord.attempts >= 5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum verification attempts exceeded. Please request a new OTP',
+      });
+    }
+
+    // Verify OTP
+    const isValid = await otpRecord.verifyOTP(otp);
+
+    if (!isValid) {
+      // Increment attempts
+      otpRecord.attempts += 1;
+      await otpRecord.save();
+
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${5 - otpRecord.attempts} attempts remaining`,
+      });
+    }
+
+    // OTP is valid - Update student email verification status
+    student.email_verified = true;
+    student.email_verified_at = new Date();
+    await student.save();
+
+    // Delete OTP after successful verification
+    await OTP.deleteOne({ _id: otpRecord._id });
+
+    // Send welcome email with password
+    // Password is passed from frontend (captured during student creation)
+    let emailWarning = null;
+    try {
+      const emailResult = await sendWelcomeEmail(email.toLowerCase(), student.name, password);
+      if (!emailResult.success) {
+        emailWarning = 'Email verified, but failed to send welcome email. Please notify the student manually.';
+        console.error('Welcome email failed:', emailResult.error);
+      }
+    } catch (emailError) {
+      emailWarning = 'Email verified, but failed to send welcome email. Please notify the student manually.';
+      console.error('Welcome email error:', emailError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      warning: emailWarning,
+      data: {
+        email: student.email,
+        email_verified: student.email_verified,
+        email_verified_at: student.email_verified_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify email',
       error: error.message,
     });
   }

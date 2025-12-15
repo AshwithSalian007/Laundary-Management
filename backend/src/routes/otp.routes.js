@@ -3,20 +3,35 @@ import {
   sendEmailVerificationOTP,
   sendPasswordResetOTP,
   resetPassword,
+  verifyEmailOTP,
 } from '../controllers/otp.controller.js';
 import {
   otpRateLimiter,
   passwordResetRateLimiter,
   otpVerificationRateLimiter,
 } from '../middleware/rateLimiter.middleware.js';
+import { protect, checkPermission } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
-// Email Verification (with rate limiting)
-// Note: Email verification happens during student creation, not as a separate step
-router.post('/send-verification', otpRateLimiter, sendEmailVerificationOTP);
+// Email Verification for Students (Admin-initiated, requires authentication & permission)
+// Admin creates student → sends OTP → verifies email
+router.post(
+  '/send-verification',
+  protect,
+  checkPermission('manage_students'),
+  otpRateLimiter,
+  sendEmailVerificationOTP
+);
+router.post(
+  '/verify-email',
+  protect,
+  checkPermission('manage_students'),
+  otpVerificationRateLimiter,
+  verifyEmailOTP
+);
 
-// Password Reset (with stricter rate limiting)
+// Password Reset (Public endpoints with rate limiting)
 router.post('/send-reset-password', passwordResetRateLimiter, sendPasswordResetOTP);
 router.post('/reset-password', otpVerificationRateLimiter, resetPassword);
 

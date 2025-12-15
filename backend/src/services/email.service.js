@@ -43,8 +43,8 @@ export const sendOTPEmail = async (email, otp, type = 'verification') => {
 
     const message =
       type === 'verification'
-        ? `Your email verification OTP is: <strong>${otp}</strong><br><br>This OTP will expire in 10 minutes.<br><br>If you didn't request this, please ignore this email.`
-        : `Your password reset OTP is: <strong>${otp}</strong><br><br>This OTP will expire in 10 minutes.<br><br>If you didn't request this, please contact the administrator.`;
+        ? `Your email verification OTP is: <strong>${otp}</strong><br><br>This OTP will expire in 20 minutes.<br><br>If you didn't request this, please ignore this email.`
+        : `Your password reset OTP is: <strong>${otp}</strong><br><br>This OTP will expire in 20 minutes.<br><br>If you didn't request this, please contact the administrator.`;
 
     const mailOptions = {
       from: `SmartWash <${process.env.EMAIL_USER || process.env.SMTP_USER}>`,
@@ -75,9 +75,26 @@ export const sendOTPEmail = async (email, otp, type = 'verification') => {
 /**
  * Send welcome email to new student
  */
-export const sendWelcomeEmail = async (email, name, password) => {
+export const sendWelcomeEmail = async (email, name, password = null) => {
   try {
     const transporter = createTransporter();
+
+    // Different email content based on whether password is provided
+    const passwordSection = password
+      ? `
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Temporary Password:</strong> ${password}</p>
+        </div>
+        <p style="color: #d9534f;"><strong>Important:</strong> Please change your password after your first login.</p>
+      `
+      : `
+        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Status:</strong> Email verified successfully</p>
+        </div>
+        <p>You can now log in to your account using the password provided by your administrator.</p>
+      `;
 
     const mailOptions = {
       from: `SmartWash <${process.env.EMAIL_USER || process.env.SMTP_USER}>`,
@@ -87,12 +104,8 @@ export const sendWelcomeEmail = async (email, name, password) => {
         <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #228B22;">Welcome to SmartWash!</h2>
           <p>Hello ${name},</p>
-          <p>Your account has been created successfully.</p>
-          <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Temporary Password:</strong> ${password}</p>
-          </div>
-          <p style="color: #d9534f;"><strong>Important:</strong> Please change your password after your first login.</p>
+          <p>Your email has been verified successfully. Your account is now active!</p>
+          ${passwordSection}
           <p>Thank you,<br>SmartWash Team</p>
           <p style="color: #666; font-size: 12px;">This is an automated email. Please do not reply.</p>
         </div>

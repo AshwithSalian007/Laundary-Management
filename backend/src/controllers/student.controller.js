@@ -1,8 +1,6 @@
 import Student from '../models/Student.js';
 import Batch from '../models/Batch.js';
-import Department from '../models/Department.js';
 import OTP from '../models/OTP.js';
-import { sendWelcomeEmail } from '../services/email.service.js';
 import {
   isValidEmail,
   isValidIndianPhoneNumber,
@@ -65,10 +63,9 @@ export const createStudent = async (req, res) => {
       registration_number,
       gender,
       batch_id,
-      otp,
     } = req.body;
 
-    // Validation: Check required fields
+    // Validation: Check required fields (OTP no longer required here)
     if (
       !name ||
       !email ||
@@ -76,12 +73,11 @@ export const createStudent = async (req, res) => {
       !phone_number ||
       !registration_number ||
       !gender ||
-      !batch_id ||
-      !otp
+      !batch_id
     ) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide all required fields including OTP',
+        message: 'Please provide all required fields',
       });
     }
 
@@ -110,66 +106,34 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Verify OTP before creating student
-    const otpRecord = await OTP.findOne({
-      user_email: email.toLowerCase(),
-      otp_type: 'email_verification',
-      is_used: false,
-    }).sort({ createdAt: -1 });
-
-    if (!otpRecord) {
-      return res.status(400).json({
-        success: false,
-        message: 'No OTP found or OTP has expired. Please request a new OTP.',
-      });
-    }
-
-    // Check if OTP expired
-    if (new Date() > otpRecord.expires_at) {
-      return res.status(400).json({
-        success: false,
-        message: 'OTP has expired. Please request a new one',
-      });
-    }
-
-    // Check attempts limit
-    if (otpRecord.attempts >= 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Maximum verification attempts exceeded. Please request a new OTP',
-      });
-    }
-
-    // Verify OTP
-    const isValid = await otpRecord.verifyOTP(otp);
-
-    if (!isValid) {
-      // Increment attempts
-      otpRecord.attempts += 1;
-      await otpRecord.save();
-
-      return res.status(400).json({
-        success: false,
-        message: `Invalid OTP. ${5 - otpRecord.attempts} attempts remaining`,
-      });
-    }
-
-    // Delete OTP immediately after successful verification (cleanup)
-    await OTP.deleteOne({ _id: otpRecord._id });
-
     // Check if email already exists
     const existingStudent = await Student.findOne({
       email: email.toLowerCase(),
     });
+
     if (existingStudent) {
-      return res.status(400).json({
-        success: false,
-        message: 'A student with this email already exists',
-      });
+      // If email exists with email_verified: true, block creation
+      if (existingStudent.email_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'A student with this email already exists and is verified',
+        });
+      }
+
+      // If email exists with email_verified: false, soft delete the old unverified student
+      // This preserves data integrity and allows for recovery if needed
+      existingStudent.isDeleted = true;
+      await existingStudent.save();
+
+      // Also delete any pending OTPs for this email
+      await OTP.deleteMany({ user_email: email.toLowerCase(), otp_type: 'email_verification' });
     }
 
-    // Check if registration number already exists
-    const existingRegNumber = await Student.findOne({ registration_number });
+    // Check if registration number already exists (exclude soft-deleted students)
+    const existingRegNumber = await Student.findOne({
+      registration_number,
+      isDeleted: false,
+    });
     if (existingRegNumber) {
       return res.status(400).json({
         success: false,
@@ -188,7 +152,10 @@ export const createStudent = async (req, res) => {
       });
     }
 
-    // Create student with email already verified
+    // Store plain password before it gets hashed (for welcome email later)
+    const plainPassword = password;
+
+    // Create student with email NOT verified (will be verified in next step)
     const student = await Student.create({
       name,
       email: email.toLowerCase(),
@@ -197,14 +164,12 @@ export const createStudent = async (req, res) => {
       registration_number,
       gender,
       batch_id,
-      email_verified: true,
-      email_verified_at: new Date(),
+      email_verified: false,
+      email_verified_at: null,
     });
 
-    // Send welcome email (non-blocking)
-    sendWelcomeEmail(email.toLowerCase(), name, password).catch(err =>
-      console.error('Failed to send welcome email:', err)
-    );
+    // Note: Welcome email will be sent after email verification
+    // OTP will be sent by frontend when verification page loads
 
     // Populate batch and department for response
     await student.populate({
@@ -216,7 +181,7 @@ export const createStudent = async (req, res) => {
       },
     });
 
-    // Remove password from response
+    // Remove hashed password from response
     const studentResponse = student.toObject();
     delete studentResponse.password;
 
@@ -224,6 +189,9 @@ export const createStudent = async (req, res) => {
       success: true,
       message: 'Student created successfully',
       data: studentResponse,
+      // Return plain password so frontend can pass it during email verification
+      // This allows us to send it in the welcome email
+      password: plainPassword,
     });
   } catch (error) {
     console.error('Error creating student:', error);
