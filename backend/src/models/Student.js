@@ -11,7 +11,6 @@ const studentSchema = new mongoose.Schema(
     email: {
       type: String,
       required: [true, 'Please provide an email'],
-      unique: true,
       lowercase: true,
       trim: true,
       match: [
@@ -37,7 +36,6 @@ const studentSchema = new mongoose.Schema(
     registration_number: {
       type: String,
       required: [true, 'Please provide registration number'],
-      unique: true,
       trim: true,
     },
     gender: {
@@ -112,8 +110,16 @@ studentSchema.methods.comparePassword = async function (candidatePassword) {
 studentSchema.index({ batch_id: 1, isDeleted: 1 });
 studentSchema.index({ hostel_status: 1, isDeleted: 1 });
 studentSchema.index({ isDeleted: 1 });
-studentSchema.index({ email: 1 });
-studentSchema.index({ registration_number: 1 });
+
+// Partial unique indexes: only enforce uniqueness for non-deleted students
+studentSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
+studentSchema.index(
+  { registration_number: 1 },
+  { unique: true, partialFilterExpression: { isDeleted: false } }
+);
 
 // Query helper to exclude soft-deleted documents
 studentSchema.query.notDeleted = function() {
