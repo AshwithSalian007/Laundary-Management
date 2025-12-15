@@ -432,8 +432,14 @@ const BatchManagement = () => {
 
         {/* Create Batch Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-xl font-bold text-gray-900 mb-4">Add New Batch</h2>
 
               {/* Error message inside modal */}
@@ -582,8 +588,17 @@ const BatchManagement = () => {
 
         {/* Edit Batch Modal */}
         {showEditModal && selectedBatch && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => {
+              setShowEditModal(false);
+              setSelectedBatch(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Edit Batch: {selectedBatch.batch_label}
               </h2>
@@ -668,8 +683,17 @@ const BatchManagement = () => {
 
         {/* View Years Modal */}
         {showViewYearsModal && selectedBatch && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => {
+              setShowViewYearsModal(false);
+              setSelectedBatch(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Years for Batch: {selectedBatch.batch_label}
               </h2>

@@ -515,8 +515,14 @@ const StudentManagement = () => {
 
         {/* Create Student Modal - Two Steps */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out scale-100"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Add New Student</h2>
                 <div className="text-sm text-gray-500">
@@ -744,8 +750,18 @@ const StudentManagement = () => {
 
         {/* Verify Email Modal - Step 2 */}
         {showVerifyModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={() => {
+              setShowVerifyModal(false);
+              setOtpInput('');
+              setError('');
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg transform transition-all duration-300 ease-out scale-100"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Verify Email</h2>
                 <div className="text-sm text-gray-500">
@@ -839,8 +855,18 @@ const StudentManagement = () => {
 
         {/* Edit Student Modal */}
         {showEditModal && selectedStudent && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 p-4 animate-fadeIn"
+            onClick={() => {
+              setShowEditModal(false);
+              setSelectedStudent(null);
+              setError('');
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto transform transition-all duration-300 ease-out scale-100"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
                   Edit Student

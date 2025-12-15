@@ -220,8 +220,14 @@ const RoleManagement = () => {
 
         {/* Create Role Modal */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => setShowCreateModal(false)}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-xl font-bold text-gray-900 mb-4">Create New Role</h2>
               <form onSubmit={handleCreateRole} className="space-y-4">
                 <div>
@@ -284,8 +290,17 @@ const RoleManagement = () => {
 
         {/* Edit Role Permissions Modal */}
         {showEditModal && selectedRole && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => {
+              setShowEditModal(false);
+              setSelectedRole(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Edit Permissions for {selectedRole.name}
               </h2>
