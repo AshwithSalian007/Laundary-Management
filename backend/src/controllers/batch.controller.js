@@ -22,8 +22,7 @@ export const getAllBatches = async (req, res) => {
       })
       .sort({ createdAt: -1 });
 
-    // MEDIUM FIX #6: Filter out batches with deleted departments
-    // This prevents displaying orphaned batches in the UI
+    // Filter out batches with deleted departments to prevent displaying orphaned batches in the UI
     const activeBatches = batches.filter(
       batch => batch.department_id && !batch.department_id.isDeleted
     );
@@ -188,8 +187,7 @@ export const createBatch = async (req, res) => {
       years
     });
 
-    // MEDIUM FIX #5: Use already-fetched department instead of re-populating
-    // This avoids potential inconsistency if department is deleted between save and populate
+    // Use already-fetched department instead of re-populating to avoid potential inconsistency
     const batchResponse = {
       ...batch.toObject(),
       department_id: {
@@ -404,7 +402,7 @@ export const restoreBatch = async (req, res) => {
       });
     }
 
-    // CRITICAL FIX #2: Check if department exists and is active
+    // Check if department exists and is active
     const department = await Department.findOne({
       _id: batch.department_id,
       isDeleted: false

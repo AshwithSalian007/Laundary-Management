@@ -59,7 +59,7 @@ const batchSchema = new mongoose.Schema(
   }
 );
 
-// MEDIUM FIX #3: Combined pre-save validation for department-related checks
+// Combined pre-save validation for department-related checks
 // (Combines years array length and current_year validation to avoid duplicate DB calls)
 batchSchema.pre('save', async function(next) {
   // Check if we need to fetch department
@@ -149,7 +149,7 @@ batchSchema.pre('save', function(next) {
       }
     }
 
-    // LOW FIX #7: Check for overlapping date ranges (ALL years with dates, not just consecutive)
+    // Check for overlapping date ranges (ALL years with dates, not just consecutive)
     // This prevents Year 1 and Year 3 from overlapping even if Year 2 has null dates
     const yearsWithDates = this.years
       .filter(y => y.start_date && y.end_date)
@@ -182,7 +182,7 @@ batchSchema.index({ department_id: 1, isDeleted: 1 });
 batchSchema.index({ isDeleted: 1 });
 batchSchema.index({ current_year: 1 });
 
-// MEDIUM FIX #4: Compound unique index for batch_label per department
+// Compound unique index for batch_label per department
 // Ensures database-level uniqueness for active batches
 batchSchema.index(
   { department_id: 1, batch_label: 1, isDeleted: 1 },

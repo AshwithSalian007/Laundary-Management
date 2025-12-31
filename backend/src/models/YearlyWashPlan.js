@@ -18,12 +18,28 @@ const yearlyWashPlanSchema = new mongoose.Schema(
       min: [1, 'Year must be at least 1'],
       max: [6, 'Year cannot exceed 6'],
     },
+
+    // Policy reference - the policy that was active when this plan was created
+    policy_id: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WashPolicy',
+      required: [true, 'Please provide wash policy'],
+    },
+
+    // Frozen policy values - copied from policy at creation time and never changed
     total_washes: {
       type: Number,
       required: [true, 'Please provide total washes'],
-      default: 30,
       min: [0, 'Total washes cannot be negative'],
     },
+    max_weight_per_wash: {
+      type: Number,
+      required: [true, 'Please provide maximum weight per wash'],
+      min: [0.1, 'Maximum weight per wash must be at least 0.1 kg'],
+      // Copied from policy at creation - used for wash_count calculation
+    },
+
+    // Dynamic counters
     used_washes: {
       type: Number,
       required: [true, 'Please provide used washes'],
@@ -33,17 +49,22 @@ const yearlyWashPlanSchema = new mongoose.Schema(
     remaining_washes: {
       type: Number,
       required: [true, 'Please provide remaining washes'],
-      default: 30,
       min: [0, 'Remaining washes cannot be negative'],
     },
+
+    // Date range - endDate is NULL until batch promotion
     start_date: {
       type: Date,
       required: [true, 'Please provide plan start date'],
     },
     end_date: {
       type: Date,
-      required: [true, 'Please provide plan end date'],
+      required: false,
+      default: null,
+      // NULL = plan is ongoing
+      // Set when batch is promoted to next year
     },
+
     is_active: {
       type: Boolean,
       default: true,
@@ -60,9 +81,10 @@ const yearlyWashPlanSchema = new mongoose.Schema(
   }
 );
 
-// Validation: end_date must be after start_date
+// Validation: end_date must be after start_date (if provided)
 yearlyWashPlanSchema.pre('save', function(next) {
-  if (this.end_date <= this.start_date) {
+  // Only validate if end_date is provided (not null)
+  if (this.end_date && this.end_date <= this.start_date) {
     next(new Error('End date must be after start date'));
   }
   next();

@@ -15,7 +15,7 @@ const washRequestSchema = new mongoose.Schema(
     weight_kg: {
       type: Number,
       required: [true, 'Please provide laundry weight'],
-      min: [0, 'Weight cannot be negative'],
+      min: [0.1, 'Weight must be at least 0.1 kg'],
     },
     cloth_count: {
       type: Number,
@@ -25,7 +25,7 @@ const washRequestSchema = new mongoose.Schema(
     wash_count: {
       type: Number,
       required: [true, 'Please provide wash count'],
-      min: [0, 'Wash count cannot be negative'],
+      min: [1, 'Wash count must be at least 1'],
     },
     status: {
       type: String,
@@ -49,17 +49,35 @@ const washRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+
+    // Soft delete flag
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Pre-save hook to calculate wash_count based on weight
-washRequestSchema.pre('save', function(next) {
-  if (this.isModified('weight_kg')) {
-    // wash_count = CEIL(weight_kg / 7)
-    this.wash_count = Math.ceil(this.weight_kg / 7);
+// Pre-save hook to calculate wash_count based on weight and plan's maxWeightPerWash
+washRequestSchema.pre('save', async function(next) {
+  if (this.isModified('weight_kg') || this.isModified('plan_id')) {
+    try {
+      // Fetch the yearly wash plan to get maxWeightPerWash
+      const YearlyWashPlan = mongoose.model('YearlyWashPlan');
+      const plan = await YearlyWashPlan.findById(this.plan_id);
+
+      if (!plan) {
+        return next(new Error('Yearly wash plan not found'));
+      }
+
+      // wash_count = CEIL(weight_kg / max_weight_per_wash)
+      this.wash_count = Math.ceil(this.weight_kg / plan.max_weight_per_wash);
+    } catch (error) {
+      return next(error);
+    }
   }
   next();
 });
@@ -73,11 +91,17 @@ washRequestSchema.pre('save', function(next) {
 });
 
 // Indexes for faster queries
-washRequestSchema.index({ student_id: 1, status: 1 });
-washRequestSchema.index({ plan_id: 1 });
-washRequestSchema.index({ status: 1 });
+washRequestSchema.index({ student_id: 1, status: 1, isDeleted: 1 });
+washRequestSchema.index({ plan_id: 1, isDeleted: 1 });
+washRequestSchema.index({ status: 1, isDeleted: 1 });
 washRequestSchema.index({ given_date: 1 });
 washRequestSchema.index({ processed_by: 1 });
+washRequestSchema.index({ isDeleted: 1 });
+
+// Query helper to exclude soft-deleted documents
+washRequestSchema.query.notDeleted = function() {
+  return this.where({ isDeleted: false });
+};
 
 // Ensure virtuals are included in JSON
 washRequestSchema.set('toJSON', { virtuals: true });
