@@ -12,6 +12,7 @@ import departmentRoutes from './routes/department.routes.js';
 import batchRoutes from './routes/batch.routes.js';
 import otpRoutes from './routes/otp.routes.js';
 import studentRoutes from './routes/student.routes.js';
+import washPolicyRoutes from './routes/washpolicy.routes.js';
 import { initializeAdmin } from './scripts/initializeAdmin.js';
 
 // Create Express app
@@ -69,6 +70,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/admin/departments', departmentRoutes);
 app.use('/api/admin/batches', batchRoutes);
 app.use('/api/admin/students', studentRoutes);
+app.use('/api/admin/policies', washPolicyRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/otp', otpRoutes);
 

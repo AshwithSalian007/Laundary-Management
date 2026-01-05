@@ -23,7 +23,7 @@ const washPolicySchema = new mongoose.Schema(
     },
     is_active: {
       type: Boolean,
-      default: true,
+      default: false,
     },
 
     // Soft delete flag
