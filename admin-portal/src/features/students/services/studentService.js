@@ -52,6 +52,25 @@ const studentService = {
     const response = await axiosInstance.put(`/admin/students/${studentId}/restore`);
     return response.data;
   },
+
+  /**
+   * Get students without wash plan
+   * @returns {Promise} API response with students without wash plan
+   */
+  getStudentsWithoutWashPlan: async () => {
+    const response = await axiosInstance.get('/admin/students/without-wash-plan');
+    return response.data;
+  },
+
+  /**
+   * Create wash plan for a student
+   * @param {string} studentId - Student ID
+   * @returns {Promise} API response with created wash plan
+   */
+  createWashPlanForStudent: async (studentId) => {
+    const response = await axiosInstance.post(`/admin/students/${studentId}/create-wash-plan`);
+    return response.data;
+  },
 };
 
 export default studentService;

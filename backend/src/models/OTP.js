@@ -36,6 +36,10 @@ const otpSchema = new mongoose.Schema(
       default: 0,
       max: [5, 'Maximum verification attempts exceeded'],
     },
+    createWashPlan: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

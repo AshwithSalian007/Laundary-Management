@@ -10,7 +10,22 @@ const authService = {
       });
       return response.data;
     } catch (error) {
-      throw error.response?.data || { message: 'Login failed' };
+      // Handle different error scenarios
+      if (error.message === 'Network error. Please check your connection.') {
+        throw new Error('Cannot connect to server. Please ensure the backend is running.');
+      }
+
+      // Check for backend error message (401, 403, etc.)
+      if (error.response?.data?.message) {
+        throw new Error(error.response.data.message);
+      }
+
+      // Check for custom error message from interceptor
+      if (error.message) {
+        throw new Error(error.message);
+      }
+
+      throw new Error('Login failed. Please try again.');
     }
   },
 

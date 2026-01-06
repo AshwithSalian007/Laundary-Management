@@ -63,6 +63,7 @@ export const createStudent = async (req, res) => {
       registration_number,
       gender,
       batch_id,
+      createWashPlan,
     } = req.body;
 
     // Validation: Check required fields (OTP no longer required here)
@@ -152,6 +153,21 @@ export const createStudent = async (req, res) => {
       });
     }
 
+    // If createWashPlan is true, validate that an active wash policy exists
+    if (createWashPlan === true) {
+      const WashPolicy = (await import('../models/WashPolicy.js')).default;
+      const activePolicy = await WashPolicy.findOne({
+        is_active: true,
+        isDeleted: false,
+      });
+      if (!activePolicy) {
+        return res.status(400).json({
+          success: false,
+          message: 'Cannot create student with wash plan: No active wash policy exists. Please activate a policy first.',
+        });
+      }
+    }
+
     // Store plain password before it gets hashed (for welcome email later)
     const plainPassword = password;
 
@@ -192,6 +208,8 @@ export const createStudent = async (req, res) => {
       // Return plain password so frontend can pass it during email verification
       // This allows us to send it in the welcome email
       password: plainPassword,
+      // Return createWashPlan flag so frontend can pass it during OTP request
+      createWashPlan: createWashPlan || false,
     });
   } catch (error) {
     console.error('Error creating student:', error);
@@ -466,6 +484,181 @@ export const restoreStudent = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to restore student',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Get students without yearly wash plan
+ * @route   GET /api/admin/students/without-wash-plan
+ * @access  Private (requires 'all' or 'manage_students' permission)
+ */
+export const getStudentsWithoutWashPlan = async (req, res) => {
+  try {
+    const YearlyWashPlan = (await import('../models/YearlyWashPlan.js')).default;
+
+    // Get all verified, active students
+    const students = await Student.find({
+      email_verified: true,
+      isDeleted: false,
+    })
+      .populate({
+        path: 'batch_id',
+        select: 'batch_label department_id current_year years isDeleted',
+        populate: {
+          path: 'department_id',
+          select: 'name isDeleted',
+        },
+      })
+      .sort({ createdAt: -1 });
+
+    // Get all student IDs
+    const studentIds = students.map(s => s._id);
+
+    // Fetch all active wash plans for these students in ONE query
+    const activePlans = await YearlyWashPlan.find({
+      student_id: { $in: studentIds },
+      is_active: true,
+      isDeleted: false,
+    }).select('student_id');
+
+    // Create a Set of student IDs that have plans for O(1) lookup
+    const studentIdsWithPlans = new Set(
+      activePlans.map(plan => plan.student_id.toString())
+    );
+
+    // Filter students who don't have active wash plans
+    const studentsWithoutPlan = students.filter(
+      student => !studentIdsWithPlans.has(student._id.toString())
+    );
+
+    res.status(200).json({
+      success: true,
+      count: studentsWithoutPlan.length,
+      data: studentsWithoutPlan,
+    });
+  } catch (error) {
+    console.error('Error fetching students without wash plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch students without wash plan',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Create wash plan for a student
+ * @route   POST /api/admin/students/:id/create-wash-plan
+ * @access  Private (requires 'all' or 'manage_students' permission)
+ */
+export const createWashPlanForStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Import models
+    const WashPolicy = (await import('../models/WashPolicy.js')).default;
+    const YearlyWashPlan = (await import('../models/YearlyWashPlan.js')).default;
+
+    // Find student and populate batch
+    const student = await Student.findOne({
+      _id: id,
+      isDeleted: false,
+    }).populate('batch_id');
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found or has been deleted',
+      });
+    }
+
+    // Check if batch exists (already populated)
+    if (!student.batch_id) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student batch not found',
+      });
+    }
+
+    // Check if student email is verified
+    if (!student.email_verified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot create wash plan for unverified student',
+      });
+    }
+
+    // Check if student already has an active wash plan
+    const existingPlan = await YearlyWashPlan.findOne({
+      student_id: student._id,
+      is_active: true,
+      isDeleted: false,
+    });
+
+    if (existingPlan) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student already has an active wash plan',
+      });
+    }
+
+    // Get currently active wash policy
+    const activePolicy = await WashPolicy.findOne({
+      is_active: true,
+      isDeleted: false,
+    });
+
+    if (!activePolicy) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active wash policy exists. Please activate a policy first.',
+      });
+    }
+
+    // Use already populated batch
+    const batch = student.batch_id;
+
+    // Validate batch has years array
+    if (!batch.years || !Array.isArray(batch.years) || batch.years.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Batch does not have year information configured',
+      });
+    }
+
+    // Create YearlyWashPlan
+    const yearNo = batch.current_year || 1;
+    const yearData = batch.years.find(y => y.year_no === yearNo);
+
+    const washPlan = await YearlyWashPlan.create({
+      student_id: student._id,
+      batch_id: batch._id || student.batch_id._id,
+      year_no: yearNo,
+      policy_id: activePolicy._id,
+      total_washes: activePolicy.total_washes,
+      max_weight_per_wash: activePolicy.max_weight_per_wash,
+      used_washes: 0,
+      remaining_washes: activePolicy.total_washes,
+      start_date: yearData?.start_date || new Date(),
+      end_date: null,
+      is_active: true,
+    });
+
+    // Populate policy details for response
+    await washPlan.populate('policy_id');
+
+    res.status(201).json({
+      success: true,
+      message: 'Wash plan created successfully',
+      data: washPlan,
+    });
+  } catch (error) {
+    console.error('Error creating wash plan:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to create wash plan',
       error: error.message,
     });
   }

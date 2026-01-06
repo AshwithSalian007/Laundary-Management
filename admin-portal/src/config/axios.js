@@ -30,20 +30,32 @@ axiosInstance.interceptors.response.use(
   },
   (error) => {
     // Handle 401 Unauthorized - auto logout (session expired or invalid token)
+    // BUT allow login page to handle 401 errors from login endpoint
     if (error.response?.status === 401) {
       const errorMessage = error.response?.data?.message || 'Session expired';
 
-      // Clear local storage
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      // Don't auto-redirect if this is a login attempt
+      if (!error.config?.url?.includes('/login')) {
+        // Clear local storage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
 
-      // Redirect to login
-      window.location.href = '/login';
+        // Redirect to login
+        window.location.href = '/login';
 
-      // Prevent further error propagation
+        // Prevent further error propagation
+        return Promise.reject({
+          message: errorMessage,
+          isAuthError: true,
+        });
+      }
+    }
+
+    // Handle 403 Forbidden - account deactivated or permission denied
+    if (error.response?.status === 403) {
       return Promise.reject({
-        message: errorMessage,
-        isAuthError: true,
+        message: error.response?.data?.message || 'Access denied',
+        status: 403,
       });
     }
 

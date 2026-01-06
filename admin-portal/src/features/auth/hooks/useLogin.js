@@ -39,7 +39,12 @@ const useLogin = () => {
     } catch (err) {
       // Clean up token on error
       localStorage.removeItem('token');
-      setError(err.message || 'Login failed. Please check your credentials.');
+
+      // Set user-friendly error message
+      const errorMessage = err.message || err.response?.data?.message || 'Login failed. Please check your credentials.';
+      setError(errorMessage);
+
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }

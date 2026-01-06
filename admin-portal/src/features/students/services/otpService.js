@@ -4,10 +4,11 @@ const otpService = {
   /**
    * Send email verification OTP
    * @param {string} email - Email address to send OTP to
+   * @param {boolean} createWashPlan - Whether to create wash plan after verification
    * @returns {Promise} API response
    */
-  sendVerificationOTP: async (email) => {
-    const response = await axiosInstance.post('/otp/send-verification', { email });
+  sendVerificationOTP: async (email, createWashPlan = false) => {
+    const response = await axiosInstance.post('/otp/send-verification', { email, createWashPlan });
     return response.data;
   },
 

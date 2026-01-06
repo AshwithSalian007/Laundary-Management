@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../../dashboard/components/DashboardLayout';
 import studentService from '../services/studentService';
 import otpService from '../services/otpService';
@@ -18,12 +18,16 @@ const formatDate = (dateString) => {
 const StudentManagement = () => {
   const [students, setStudents] = useState([]);
   const [departments, setDepartments] = useState([]);
+
+  // Ref to track timeouts for cleanup
+  const timeoutRefs = useRef([]);
   const [batches, setBatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [hasPermission, setHasPermission] = useState(true);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [showWithoutWashPlan, setShowWithoutWashPlan] = useState(false);
 
   // Modal states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -44,6 +48,7 @@ const StudentManagement = () => {
     department_id: '',
     batch_id: '',
     hostel_status: 'active',
+    createWashPlan: true,
   });
 
   // OTP input
@@ -64,15 +69,37 @@ const StudentManagement = () => {
   // Fetch students and departments on component mount
   useEffect(() => {
     fetchData();
-  }, [showDeleted]);
+  }, [showDeleted, showWithoutWashPlan]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      timeoutRefs.current.forEach(timeoutId => clearTimeout(timeoutId));
+      timeoutRefs.current = [];
+    };
+  }, []);
+
+  // Helper to safely set timeout with cleanup tracking
+  const setSafeTimeout = (callback, delay) => {
+    const timeoutId = setTimeout(callback, delay);
+    timeoutRefs.current.push(timeoutId);
+    return timeoutId;
+  };
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [studentsRes, departmentsRes] = await Promise.all([
-        studentService.getAllStudents(showDeleted),
-        departmentService.getAllDepartments(false),
-      ]);
+
+      // Determine which API to call based on filter
+      let studentsRes;
+      if (showWithoutWashPlan) {
+        studentsRes = await studentService.getStudentsWithoutWashPlan();
+      } else {
+        studentsRes = await studentService.getAllStudents(showDeleted);
+      }
+
+      const departmentsRes = await departmentService.getAllDepartments(false);
+
       setStudents(studentsRes.data || []);
       setDepartments(departmentsRes.data || []);
       setError('');
@@ -121,6 +148,7 @@ const StudentManagement = () => {
   const [studentPassword, setStudentPassword] = useState('');
   const [createdStudentEmail, setCreatedStudentEmail] = useState('');
   const [createdStudentName, setCreatedStudentName] = useState('');
+  const [studentCreateWashPlan, setStudentCreateWashPlan] = useState(false);
 
   // Handle create student (Step 1: Create student and send OTP)
   const handleCreateStudent = async (e) => {
@@ -162,13 +190,14 @@ const StudentManagement = () => {
       // Step 1: Create student (without OTP)
       const createResponse = await studentService.createStudent(createFormData);
 
-      // Store password from response (for welcome email later)
+      // Store password and createWashPlan from response (for verification later)
       setStudentPassword(createResponse.password);
       setCreatedStudentEmail(createFormData.email);
       setCreatedStudentName(createFormData.name);
+      setStudentCreateWashPlan(createResponse.createWashPlan || false);
 
       // Step 2: Send OTP
-      await otpService.sendVerificationOTP(createFormData.email);
+      await otpService.sendVerificationOTP(createFormData.email, createResponse.createWashPlan);
 
       // Step 3: Close create modal and show verification modal
       setShowCreateModal(false);
@@ -199,6 +228,7 @@ const StudentManagement = () => {
         email: createdStudentEmail,
         otp: otpInput,
         password: studentPassword,
+        createWashPlan: studentCreateWashPlan,
       });
 
       // Check if there's a warning about welcome email
@@ -211,7 +241,7 @@ const StudentManagement = () => {
       setShowVerifyModal(false);
       resetCreateForm();
       fetchData();
-      setTimeout(() => setSuccess(''), 5000); // 5 seconds for warnings
+      setSafeTimeout(() => setSuccess(''), 5000); // 5 seconds for warnings
       setLoading(false);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to verify OTP');
@@ -224,9 +254,9 @@ const StudentManagement = () => {
     try {
       setError('');
       setSendingOTP(true);
-      await otpService.sendVerificationOTP(createdStudentEmail);
+      await otpService.sendVerificationOTP(createdStudentEmail, studentCreateWashPlan);
       setSuccess('OTP resent successfully!');
-      setTimeout(() => setSuccess(''), 3000);
+      setSafeTimeout(() => setSuccess(''), 3000);
       setSendingOTP(false);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to resend OTP');
@@ -266,7 +296,7 @@ const StudentManagement = () => {
       setShowEditModal(false);
       setSelectedStudent(null);
       fetchData();
-      setTimeout(() => setSuccess(''), 3000);
+      setSafeTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to update student');
     }
@@ -282,7 +312,7 @@ const StudentManagement = () => {
       await studentService.deleteStudent(studentId);
       setSuccess('Student deleted successfully!');
       fetchData();
-      setTimeout(() => setSuccess(''), 3000);
+      setSafeTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to delete student');
     }
@@ -298,7 +328,7 @@ const StudentManagement = () => {
       await studentService.restoreStudent(studentId);
       setSuccess('Student restored successfully!');
       fetchData();
-      setTimeout(() => setSuccess(''), 3000);
+      setSafeTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to restore student');
     }
@@ -337,11 +367,13 @@ const StudentManagement = () => {
       department_id: '',
       batch_id: '',
       hostel_status: 'active',
+      createWashPlan: true,
     });
     setOtpInput('');
     setStudentPassword('');
     setCreatedStudentEmail('');
     setCreatedStudentName('');
+    setStudentCreateWashPlan(false);
     setBatches([]);
   };
 
@@ -355,6 +387,30 @@ const StudentManagement = () => {
       fetchBatchesForDepartment(departmentId, isEdit);
     } else {
       setBatches([]);
+    }
+  };
+
+  // Handle create wash plan for student
+  const handleCreateWashPlan = async (studentId, studentName) => {
+    try {
+      if (!window.confirm(`Create wash plan for ${studentName}?`)) {
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      await studentService.createWashPlanForStudent(studentId);
+
+      setSuccess(`Wash plan created successfully for ${studentName}!`);
+      setSafeTimeout(() => setSuccess(''), 5000);
+
+      // Refresh the list
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to create wash plan');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -389,7 +445,27 @@ const StudentManagement = () => {
           <h1 className="text-2xl font-bold text-gray-900">Student Management</h1>
           <div className="flex gap-3">
             <button
-              onClick={() => setShowDeleted(!showDeleted)}
+              onClick={() => {
+                setShowWithoutWashPlan(!showWithoutWashPlan);
+                if (!showWithoutWashPlan) {
+                  setShowDeleted(false); // Turn off deleted filter when showing without wash plan
+                }
+              }}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                showWithoutWashPlan
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              }`}
+            >
+              {showWithoutWashPlan ? 'Show All Students' : 'Without Wash Plan'}
+            </button>
+            <button
+              onClick={() => {
+                setShowDeleted(!showDeleted);
+                if (!showDeleted) {
+                  setShowWithoutWashPlan(false); // Turn off wash plan filter when showing deleted
+                }
+              }}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
               {showDeleted ? 'Show Active' : 'Show Deleted'}
@@ -485,6 +561,14 @@ const StudentManagement = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                     {!student.isDeleted ? (
                       <>
+                        {showWithoutWashPlan && (
+                          <button
+                            onClick={() => handleCreateWashPlan(student._id, student.name)}
+                            className="px-3 py-1 bg-[#228B22] text-white rounded hover:bg-[#4CAF50] transition-colors"
+                          >
+                            Create Wash Plan
+                          </button>
+                        )}
                         <button
                           onClick={() => openEditModal(student)}
                           className="text-blue-600 hover:text-blue-900"
@@ -720,6 +804,30 @@ const StudentManagement = () => {
                       ))}
                     </select>
                     </div>
+                  </div>
+                </div>
+
+                {/* Wash Plan Options */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-700 mb-4 pb-2 border-b border-gray-200">
+                    Wash Plan Options
+                  </h3>
+                  <div className="flex items-center space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <input
+                      type="checkbox"
+                      id="createWashPlan"
+                      checked={createFormData.createWashPlan}
+                      onChange={(e) =>
+                        setCreateFormData({ ...createFormData, createWashPlan: e.target.checked })
+                      }
+                      className="w-4 h-4 text-[#228B22] border-gray-300 rounded focus:ring-2 focus:ring-[#228B22]"
+                    />
+                    <label htmlFor="createWashPlan" className="flex-1 text-sm font-medium text-gray-700 cursor-pointer">
+                      Create Yearly Wash Plan for this student
+                      <span className="block text-xs text-gray-500 mt-1">
+                        Student will be enrolled in the currently active wash policy. Uncheck if you want to add the wash plan later.
+                      </span>
+                    </label>
                   </div>
                 </div>
 

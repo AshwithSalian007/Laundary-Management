@@ -21,7 +21,7 @@ const generateOTPCode = () => {
  */
 export const sendEmailVerificationOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, createWashPlan } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -75,6 +75,7 @@ export const sendEmailVerificationOTP = async (req, res) => {
       otp_code: otpCode,
       otp_type: 'email_verification',
       expires_at: expiresAt,
+      createWashPlan: createWashPlan || false,
     });
 
     // Send OTP via email
@@ -368,6 +369,55 @@ export const verifyEmailOTP = async (req, res) => {
     student.email_verified = true;
     student.email_verified_at = new Date();
     await student.save();
+
+    // Create YearlyWashPlan if requested
+    if (otpRecord.createWashPlan === true) {
+      try {
+        // Import models
+        const Batch = (await import('../models/Batch.js')).default;
+        const WashPolicy = (await import('../models/WashPolicy.js')).default;
+        const YearlyWashPlan = (await import('../models/YearlyWashPlan.js')).default;
+
+        // Get student's batch with year details
+        const batch = await Batch.findById(student.batch_id);
+        if (!batch) {
+          console.error('Batch not found for wash plan creation');
+        } else {
+          // Get currently active wash policy
+          const activePolicy = await WashPolicy.findOne({
+            is_active: true,
+            isDeleted: false,
+          });
+
+          if (!activePolicy) {
+            console.error('No active wash policy found for wash plan creation');
+          } else {
+            // Create YearlyWashPlan for Year 1
+            const yearNo = batch.current_year || 1;
+            const yearData = batch.years.find(y => y.year_no === yearNo);
+
+            await YearlyWashPlan.create({
+              student_id: student._id,
+              batch_id: student.batch_id,
+              year_no: yearNo,
+              policy_id: activePolicy._id,
+              total_washes: activePolicy.total_washes,
+              max_weight_per_wash: activePolicy.max_weight_per_wash,
+              used_washes: 0,
+              remaining_washes: activePolicy.total_washes,
+              start_date: yearData?.start_date || new Date(),
+              end_date: null,
+              is_active: true,
+            });
+
+            console.log(`YearlyWashPlan created for student ${student.email}, Year ${yearNo}`);
+          }
+        }
+      } catch (washPlanError) {
+        // Log error but don't fail the verification
+        console.error('Error creating wash plan:', washPlanError);
+      }
+    }
 
     // Delete OTP after successful verification
     await OTP.deleteOne({ _id: otpRecord._id });
