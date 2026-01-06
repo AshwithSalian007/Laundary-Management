@@ -1,7 +1,8 @@
 import jwt from 'jsonwebtoken';
-import { redisAuth } from '../config/redis.js';
+import { redisAuth, redisStudent } from '../config/redis.js';
+import Student from '../models/Student.js';
 
-// Protect routes - verify JWT and fetch permissions from Redis
+// Protect routes - verify JWT and fetch permissions from Redis (for admins) or validate student
 export const protect = async (req, res, next) => {
   try {
     let token;
@@ -24,8 +25,70 @@ export const protect = async (req, res, next) => {
     try {
       // Verify JWT token and extract data
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      // decoded contains: { id, roleName }
+      // decoded contains: { id, roleName } for admin OR { id, type: 'student' } for student
 
+      // Check if this is a student token
+      if (decoded.type === 'student') {
+        // Check if session exists in Redis
+        let session;
+        try {
+          session = await redisStudent.getStudentSession(decoded.id);
+        } catch (redisError) {
+          console.error('Redis error in student auth:', redisError.message);
+          return res.status(503).json({
+            success: false,
+            message: 'Service temporarily unavailable. Please try again.',
+          });
+        }
+
+        if (!session) {
+          // Session doesn't exist - logged out or logged in on another device
+          return res.status(401).json({
+            success: false,
+            message: 'Session expired or logged in on another device',
+            code: 'SESSION_NOT_FOUND',
+          });
+        }
+
+        // Update last activity timestamp in Redis
+        try {
+          await redisStudent.updateStudentActivity(decoded.id);
+        } catch (redisError) {
+          console.error('Redis error updating activity:', redisError.message);
+          // Continue even if update fails
+        }
+
+        // Validate student still exists and is active in database
+        const student = await Student.findById(decoded.id).select('-password');
+
+        if (!student) {
+          // Student was deleted from database
+          await redisStudent.deleteStudentSession(decoded.id);
+          return res.status(401).json({
+            success: false,
+            message: 'Account not found. Please contact administration.',
+            code: 'ACCOUNT_NOT_FOUND',
+          });
+        }
+
+        if (student.isDeleted) {
+          // Student account was deactivated
+          await redisStudent.deleteStudentSession(decoded.id);
+          return res.status(403).json({
+            success: false,
+            message: 'Your account has been deactivated by administration.',
+            code: 'ACCOUNT_DEACTIVATED',
+          });
+        }
+
+        // Attach student data to request object
+        req.user = student;
+        req.userType = 'student';
+        req.session = session; // Include session data
+        return next();
+      }
+
+      // Admin authentication (original logic)
       // Fetch permissions from Redis and reset TTL to 1 hour
       let permissions;
       try {
@@ -46,12 +109,13 @@ export const protect = async (req, res, next) => {
         });
       }
 
-      // Attach user data to request object
+      // Attach admin data to request object
       req.user = {
         id: decoded.id,
         roleName: decoded.roleName,
         permissions: permissions,
       };
+      req.userType = 'admin';
 
       next();
     } catch (error) {

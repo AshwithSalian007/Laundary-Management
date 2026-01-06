@@ -13,6 +13,8 @@ import batchRoutes from './routes/batch.routes.js';
 import otpRoutes from './routes/otp.routes.js';
 import studentRoutes from './routes/student.routes.js';
 import washPolicyRoutes from './routes/washpolicy.routes.js';
+import washPlanRoutes from './routes/washplan.routes.js';
+import washRequestRoutes from './routes/washrequest.routes.js';
 import { initializeAdmin } from './scripts/initializeAdmin.js';
 
 // Create Express app
@@ -73,6 +75,10 @@ app.use('/api/admin/students', studentRoutes);
 app.use('/api/admin/policies', washPolicyRoutes);
 app.use('/api/admin', authRoutes);
 app.use('/api/otp', otpRoutes);
+
+// Student routes
+app.use('/api/wash-plans', washPlanRoutes);
+app.use('/api/wash-requests', washRequestRoutes);
 
 // Health check route (includes Redis status)
 app.get('/health', async (req, res) => {

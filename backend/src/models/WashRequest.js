@@ -43,7 +43,7 @@ const washRequestSchema = new mongoose.Schema(
     processed_by: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Admin',
-      required: [true, 'Please provide staff who processed this'],
+      required: false,
     },
     notes: {
       type: String,

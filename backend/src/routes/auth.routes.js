@@ -2,6 +2,7 @@ import express from 'express';
 import {
   login,
   studentLogin,
+  studentLogout,
   createStaff,
   getMe,
   logout,
@@ -24,7 +25,8 @@ router.post('/student/login', studentLogin); // Student login
 
 // Protected routes (require authentication)
 router.get('/me', protect, getMe);
-router.post('/logout', protect, logout);
+router.post('/logout', protect, logout); // Admin logout
+router.post('/student/logout', protect, studentLogout); // Student logout
 
 // Staff Management routes - require 'all' OR 'manage_staff' permission
 router.post('/staff', protect, canManageStaff, createStaff);

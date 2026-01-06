@@ -138,4 +138,67 @@ export const redisAuth = {
   }
 };
 
+// Redis utility functions for student authentication
+export const redisStudent = {
+  // Store student session in Redis (no TTL - lives forever until logout)
+  async setStudentSession(studentId, sessionData) {
+    const key = `student:session:${studentId}`;
+    const value = JSON.stringify({
+      loginTime: new Date().toISOString(),
+      lastActivity: new Date().toISOString(),
+      ...sessionData
+    });
+    await redis.set(key, value); // No expiry
+  },
+
+  // Get student session
+  async getStudentSession(studentId) {
+    const key = `student:session:${studentId}`;
+    const value = await redis.get(key);
+
+    if (!value) {
+      return null; // Session doesn't exist (logged out)
+    }
+
+    return JSON.parse(value);
+  },
+
+  // Update last activity timestamp
+  async updateStudentActivity(studentId) {
+    const key = `student:session:${studentId}`;
+    const session = await this.getStudentSession(studentId);
+
+    if (session) {
+      session.lastActivity = new Date().toISOString();
+      await redis.set(key, JSON.stringify(session));
+    }
+  },
+
+  // Delete student session (logout)
+  async deleteStudentSession(studentId) {
+    const key = `student:session:${studentId}`;
+    await redis.del(key);
+  },
+
+  // Get all active student sessions (for admin dashboard - future feature)
+  async getAllActiveStudents() {
+    const keys = await redis.keys('student:session:*');
+    const sessions = [];
+
+    for (const key of keys) {
+      const studentId = key.replace('student:session:', '');
+      const sessionData = await redis.get(key);
+
+      if (sessionData) {
+        sessions.push({
+          studentId,
+          ...JSON.parse(sessionData)
+        });
+      }
+    }
+
+    return sessions;
+  }
+};
+
 export default redis;

@@ -3,7 +3,7 @@ import Admin from '../models/Admin.js';
 import Student from '../models/Student.js';
 import Role from '../models/Role.js';
 import Permission from '../models/Permission.js';
-import { redisAuth } from '../config/redis.js';
+import { redisAuth, redisStudent } from '../config/redis.js';
 
 // Generate JWT Token (only id and roleName, permissions stored in Redis)
 // NO EXPIRY - Redis controls session lifetime with 1h TTL
@@ -784,12 +784,12 @@ export const deleteRole = async (req, res) => {
 
 // ==================== STUDENT AUTHENTICATION ====================
 
-// Generate simple JWT token for students (no roles/permissions)
+// Generate JWT token for students (no expiry - session managed by Redis)
 const generateStudentToken = (studentId) => {
   return jwt.sign(
     { id: studentId, type: 'student' },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' } // Students get 7-day tokens
+    process.env.JWT_SECRET
+    // No expiresIn - token never expires, Redis session is the source of truth
   );
 };
 
@@ -835,14 +835,6 @@ export const studentLogin = async (req, res) => {
       });
     }
 
-    // CHECK: Email must be verified before login
-    if (!student.email_verified) {
-      return res.status(403).json({
-        success: false,
-        message: 'Please verify your email before logging in. Contact administrator if you need help.',
-      });
-    }
-
     // Compare password
     const isPasswordMatch = await student.comparePassword(password);
 
@@ -853,8 +845,36 @@ export const studentLogin = async (req, res) => {
       });
     }
 
-    // Generate JWT token
+    // SINGLE DEVICE LOGIN: Delete any existing session (logout from other device)
+    try {
+      const existingSession = await redisStudent.getStudentSession(student._id.toString());
+      if (existingSession) {
+        await redisStudent.deleteStudentSession(student._id.toString());
+        console.log(`Previous session deleted for student: ${student._id}`);
+      }
+    } catch (redisError) {
+      console.error('Redis error during session cleanup:', redisError.message);
+      // Continue with login even if Redis cleanup fails
+    }
+
+    // Generate JWT token (no expiry)
     const token = generateStudentToken(student._id);
+
+    // Store session in Redis (no TTL)
+    try {
+      await redisStudent.setStudentSession(student._id.toString(), {
+        studentId: student._id.toString(),
+        email: student.email,
+        name: student.name,
+      });
+    } catch (redisError) {
+      console.error('Redis error during login:', redisError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Service temporarily unavailable. Please try again.',
+        error: 'Session storage unavailable',
+      });
+    }
 
     // Update last login
     student.lastLogin = new Date();
@@ -875,6 +895,38 @@ export const studentLogin = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error during login',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    Logout student
+// @route   POST /api/auth/student/logout
+// @access  Private (Student)
+export const studentLogout = async (req, res) => {
+  try {
+    const studentId = req.user._id.toString();
+
+    // Delete session from Redis
+    try {
+      await redisStudent.deleteStudentSession(studentId);
+    } catch (redisError) {
+      console.error('Redis error during logout:', redisError.message);
+      return res.status(503).json({
+        success: false,
+        message: 'Service temporarily unavailable. Please try again.',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully',
+    });
+  } catch (error) {
+    console.error('Student logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error during logout',
       error: error.message,
     });
   }
