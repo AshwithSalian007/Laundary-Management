@@ -1,70 +1,55 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../features/auth/context/AuthContext';
+import { createStackNavigator } from '@react-navigation/stack';
+import { useAuth } from '../context/AuthContext';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { COLORS } from '../constants/theme';
 
 // Screens
-import LoginScreen from '../features/auth/screens/LoginScreen';
-import DashboardScreen from '../features/dashboard/screens/DashboardScreen';
-import NewRequestScreen from '../features/washRequests/screens/NewRequestScreen';
-import RequestHistoryScreen from '../features/washRequests/screens/RequestHistoryScreen';
-import RequestDetailsScreen from '../features/washRequests/screens/RequestDetailsScreen';
+import LoginScreen from '../screens/LoginScreen';
+import DashboardScreen from '../screens/DashboardScreen';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 
 const AppNavigator = () => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  if (loading) {
-    return null; // Or a loading screen
+  // Show loading screen while checking authentication
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
   }
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: {
-            backgroundColor: '#3b82f6',
-          },
-          headerTintColor: '#fff',
-          headerTitleStyle: {
-            fontWeight: 'bold',
-          },
+          headerShown: false,
+          cardStyle: { backgroundColor: COLORS.background },
         }}
       >
-        {!isAuthenticated ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{ headerShown: false }}
-          />
+        {isAuthenticated ? (
+          // User is authenticated - Show app screens
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
         ) : (
-          <>
-            <Stack.Screen
-              name="Dashboard"
-              component={DashboardScreen}
-              options={{ title: 'SmartWash' }}
-            />
-            <Stack.Screen
-              name="NewRequest"
-              component={NewRequestScreen}
-              options={{ title: 'New Wash Request' }}
-            />
-            <Stack.Screen
-              name="RequestHistory"
-              component={RequestHistoryScreen}
-              options={{ title: 'Request History' }}
-            />
-            <Stack.Screen
-              name="RequestDetails"
-              component={RequestDetailsScreen}
-              options={{ title: 'Request Details' }}
-            />
-          </>
+          // User is not authenticated - Show auth screens
+          <Stack.Screen name="Login" component={LoginScreen} />
         )}
       </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+});
 
 export default AppNavigator;

@@ -197,7 +197,7 @@ const StudentManagement = () => {
       setStudentCreateWashPlan(createResponse.createWashPlan || false);
 
       // Step 2: Send OTP
-      await otpService.sendVerificationOTP(createFormData.email, createResponse.createWashPlan);
+      await otpService.sendVerificationOTP(createFormData.email.toLowerCase().trim(), createResponse.createWashPlan);
 
       // Step 3: Close create modal and show verification modal
       setShowCreateModal(false);
@@ -225,8 +225,8 @@ const StudentManagement = () => {
 
       // Verify OTP and send password for welcome email
       const response = await otpService.verifyEmailOTP({
-        email: createdStudentEmail,
-        otp: otpInput,
+        email: createdStudentEmail.toLowerCase().trim(),
+        otp: otpInput.trim(),
         password: studentPassword,
         createWashPlan: studentCreateWashPlan,
       });
@@ -254,7 +254,7 @@ const StudentManagement = () => {
     try {
       setError('');
       setSendingOTP(true);
-      await otpService.sendVerificationOTP(createdStudentEmail, studentCreateWashPlan);
+      await otpService.sendVerificationOTP(createdStudentEmail.toLowerCase().trim(), studentCreateWashPlan);
       setSuccess('OTP resent successfully!');
       setSafeTimeout(() => setSuccess(''), 3000);
       setSendingOTP(false);
