@@ -8,6 +8,7 @@ import { COLORS } from '../constants/theme';
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createStackNavigator();
 
@@ -33,7 +34,10 @@ const AppNavigator = () => {
       >
         {isAuthenticated ? (
           // User is authenticated - Show app screens
-          <Stack.Screen name="Dashboard" component={DashboardScreen} />
+          <>
+            <Stack.Screen name="Dashboard" component={DashboardScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen} />
+          </>
         ) : (
           // User is not authenticated - Show auth screens
           <Stack.Screen name="Login" component={LoginScreen} />
