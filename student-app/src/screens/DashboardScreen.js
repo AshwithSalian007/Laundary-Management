@@ -9,10 +9,11 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, SIZES } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { SIZES } from '../constants/theme';
 import ProgressRing from '../components/ProgressRing';
+import Sidebar from '../components/Sidebar';
 import {
   getMyWashPlan,
   calculateWashStats,
@@ -21,10 +22,12 @@ import {
 
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const { isDark, colors } = useTheme();
   const [washPlan, setWashPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
 
   // Fetch wash plan data
   const fetchWashPlan = async () => {
@@ -50,52 +53,70 @@ const DashboardScreen = ({ navigation }) => {
     fetchWashPlan();
   };
 
-  const handleSettingsPress = () => {
-    navigation.navigate('Settings');
+  const toggleSidebar = () => {
+    setSidebarVisible(!sidebarVisible);
   };
 
   // Calculate statistics
   const stats = washPlan ? calculateWashStats(washPlan) : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Sidebar */}
+      <Sidebar
+        visible={sidebarVisible}
+        onClose={() => setSidebarVisible(false)}
+        navigation={navigation}
+      />
 
       {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>Welcome back,</Text>
-          <Text style={styles.userName}>{user?.name || 'Student'}</Text>
-        </View>
+      <View style={[styles.header, { backgroundColor: colors.card, borderBottomColor: colors.border }]}>
         <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={handleSettingsPress}
+          style={styles.menuButton}
+          onPress={toggleSidebar}
           activeOpacity={0.7}
         >
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <View style={styles.hamburger}>
+            <View style={[styles.hamburgerLine, { backgroundColor: colors.textPrimary }]} />
+            <View style={[styles.hamburgerLine, { backgroundColor: colors.textPrimary }]} />
+            <View style={[styles.hamburgerLine, { backgroundColor: colors.textPrimary }]} />
+          </View>
         </TouchableOpacity>
+        <View style={styles.headerCenter}>
+          <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>
+            Dashboard
+          </Text>
+        </View>
+        <View style={styles.menuButton} />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
         }
       >
         {/* Loading State */}
         {loading && (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={COLORS.primary} />
-            <Text style={styles.loadingText}>Loading your wash plan...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading your wash plan...
+            </Text>
           </View>
         )}
 
         {/* Error State */}
         {!loading && error && (
           <View style={styles.centerContainer}>
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={fetchWashPlan}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -107,11 +128,13 @@ const DashboardScreen = ({ navigation }) => {
         {!loading && !error && washPlan && stats && (
           <View style={styles.content}>
             {/* Hero Card - Wash Plan Overview */}
-            <View style={styles.heroCard}>
+            <View style={[styles.heroCard, { backgroundColor: colors.card }]}>
               <View style={styles.heroHeader}>
                 <View>
-                  <Text style={styles.heroTitle}>Yearly Wash Plan</Text>
-                  <Text style={styles.heroSubtitle}>
+                  <Text style={[styles.heroTitle, { color: colors.textPrimary }]}>
+                    Yearly Wash Plan
+                  </Text>
+                  <Text style={[styles.heroSubtitle, { color: colors.textSecondary }]}>
                     {washPlan.policy_id?.name || 'Standard Plan'}
                   </Text>
                 </View>
@@ -129,14 +152,16 @@ const DashboardScreen = ({ navigation }) => {
                   size={180}
                   strokeWidth={14}
                   color={stats.statusColor}
+                  backgroundColor={colors.border}
                   label={stats.remaining_washes.toString()}
                   sublabel="Remaining"
+                  sublabelColor={colors.textSecondary}
                 />
               </View>
 
               {/* Date Range */}
               <View style={styles.dateRange}>
-                <Text style={styles.dateText}>
+                <Text style={[styles.dateText, { color: colors.textSecondary }]}>
                   {formatPlanDate(washPlan.start_date)} - {formatPlanDate(washPlan.end_date)}
                 </Text>
               </View>
@@ -144,33 +169,51 @@ const DashboardScreen = ({ navigation }) => {
 
             {/* Stats Grid */}
             <View style={styles.statsGrid}>
-              <View style={[styles.statCard, styles.statCardPrimary]}>
-                <Text style={styles.statValue}>{stats.total_washes}</Text>
-                <Text style={styles.statLabel}>Total Washes</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.primary + '15' }]}>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                  {stats.total_washes}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                  Total Washes
+                </Text>
               </View>
 
-              <View style={[styles.statCard, styles.statCardWarning]}>
-                <Text style={styles.statValue}>{stats.used_washes}</Text>
-                <Text style={styles.statLabel}>Used</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.warning + '15' }]}>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                  {stats.used_washes}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                  Used
+                </Text>
               </View>
 
-              <View style={[styles.statCard, styles.statCardSuccess]}>
-                <Text style={styles.statValue}>{washPlan.max_weight_per_wash} kg</Text>
-                <Text style={styles.statLabel}>Max Weight</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.success + '15' }]}>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                  {washPlan.max_weight_per_wash} kg
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                  Max Weight
+                </Text>
               </View>
 
-              <View style={[styles.statCard, styles.statCardInfo]}>
-                <Text style={styles.statValue}>Year {washPlan.year_no}</Text>
-                <Text style={styles.statLabel}>Academic Year</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.info + '15' }]}>
+                <Text style={[styles.statValue, { color: colors.textPrimary }]}>
+                  Year {washPlan.year_no}
+                </Text>
+                <Text style={[styles.statLabel, { color: colors.textSecondary }]}>
+                  Academic Year
+                </Text>
               </View>
             </View>
 
             {/* Quick Actions */}
             <View style={styles.actionsContainer}>
-              <Text style={styles.actionsTitle}>Quick Actions</Text>
+              <Text style={[styles.actionsTitle, { color: colors.textPrimary }]}>
+                Quick Actions
+              </Text>
 
               <TouchableOpacity
-                style={[styles.actionButton, styles.actionButtonPrimary]}
+                style={[styles.actionButton, { backgroundColor: colors.primary }]}
                 activeOpacity={0.8}
               >
                 <View style={styles.actionButtonContent}>
@@ -186,67 +229,44 @@ const DashboardScreen = ({ navigation }) => {
 
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonSecondary, styles.actionButtonHalf]}
+                  style={[
+                    styles.actionButton,
+                    styles.actionButtonHalf,
+                    { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }
+                  ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.actionButtonIconSecondary}>📋</Text>
-                  <Text style={styles.actionButtonTitleSecondary}>History</Text>
+                  <Text style={[styles.actionButtonTitleSecondary, { color: colors.textPrimary }]}>
+                    History
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.actionButton, styles.actionButtonSecondary, styles.actionButtonHalf]}
+                  style={[
+                    styles.actionButton,
+                    styles.actionButtonHalf,
+                    { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }
+                  ]}
                   activeOpacity={0.8}
                 >
                   <Text style={styles.actionButtonIconSecondary}>ℹ️</Text>
-                  <Text style={styles.actionButtonTitleSecondary}>Plan Details</Text>
+                  <Text style={[styles.actionButtonTitleSecondary, { color: colors.textPrimary }]}>
+                    Plan Details
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* User Info Card */}
-            {user && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Your Information</Text>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Name:</Text>
-                  <Text style={styles.infoValue}>{user.name}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Email:</Text>
-                  <Text style={styles.infoValue}>{user.email}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>Registration No:</Text>
-                  <Text style={styles.infoValue}>{user.registration_number}</Text>
-                </View>
-                {user.batch_id && (
-                  <>
-                    <View style={styles.infoRow}>
-                      <Text style={styles.infoLabel}>Batch:</Text>
-                      <Text style={styles.infoValue}>
-                        {user.batch_id.batch_label}
-                      </Text>
-                    </View>
-                    {user.batch_id.department_id && (
-                      <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Department:</Text>
-                        <Text style={styles.infoValue}>
-                          {user.batch_id.department_id.name}
-                        </Text>
-                      </View>
-                    )}
-                  </>
-                )}
-              </View>
-            )}
           </View>
         )}
 
         {/* No Wash Plan State */}
         {!loading && !error && !washPlan && (
           <View style={styles.centerContainer}>
-            <Text style={styles.emptyTitle}>No Wash Plan Found</Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>
+              No Wash Plan Found
+            </Text>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
               Please contact your administrator to set up your wash plan.
             </Text>
           </View>
@@ -259,7 +279,6 @@ const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -269,33 +288,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: SIZES.spacing.lg,
-    backgroundColor: COLORS.white,
+    paddingHorizontal: SIZES.spacing.lg,
+    paddingVertical: SIZES.spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
-  greeting: {
-    fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
-  },
-  userName: {
-    fontSize: SIZES.xl,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginTop: SIZES.spacing.xs,
-  },
-  settingsButton: {
+  menuButton: {
     width: 40,
     height: 40,
-    borderRadius: SIZES.radius.full,
-    backgroundColor: COLORS.background,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: COLORS.border,
   },
-  settingsIcon: {
-    fontSize: 20,
+  hamburger: {
+    width: 24,
+    height: 18,
+    justifyContent: 'space-between',
+  },
+  hamburgerLine: {
+    width: '100%',
+    height: 3,
+    borderRadius: 2,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: SIZES.lg,
+    fontWeight: '600',
   },
   content: {
     padding: SIZES.spacing.lg,
@@ -310,44 +329,38 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: SIZES.spacing.md,
     fontSize: SIZES.base,
-    color: COLORS.textSecondary,
   },
   errorText: {
     fontSize: SIZES.base,
-    color: COLORS.error,
     textAlign: 'center',
     marginBottom: SIZES.spacing.md,
   },
   retryButton: {
-    backgroundColor: COLORS.primary,
     paddingHorizontal: SIZES.spacing.lg,
     paddingVertical: SIZES.spacing.md,
     borderRadius: SIZES.radius.md,
   },
   retryButtonText: {
-    color: COLORS.white,
+    color: '#FFFFFF', // Always white on primary button
     fontSize: SIZES.base,
     fontWeight: '600',
   },
   emptyTitle: {
     fontSize: SIZES.xl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.spacing.sm,
   },
   emptySubtitle: {
     fontSize: SIZES.base,
-    color: COLORS.textSecondary,
     textAlign: 'center',
   },
 
   // Hero Card
   heroCard: {
-    backgroundColor: COLORS.white,
     borderRadius: SIZES.radius.xl,
     padding: SIZES.spacing.xl,
     marginBottom: SIZES.spacing.lg,
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
@@ -362,11 +375,9 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: SIZES.xxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
   },
   heroSubtitle: {
     fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
     marginTop: SIZES.spacing.xs,
   },
   statusBadge: {
@@ -389,7 +400,6 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
   },
 
   // Stats Grid
@@ -407,27 +417,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  statCardPrimary: {
-    backgroundColor: COLORS.primary + '15',
-  },
-  statCardWarning: {
-    backgroundColor: COLORS.warning + '15',
-  },
-  statCardSuccess: {
-    backgroundColor: COLORS.success + '15',
-  },
-  statCardInfo: {
-    backgroundColor: COLORS.info + '15',
-  },
   statValue: {
     fontSize: SIZES.xxl,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.spacing.xs,
   },
   statLabel: {
     fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
     textAlign: 'center',
   },
 
@@ -438,25 +434,17 @@ const styles = StyleSheet.create({
   actionsTitle: {
     fontSize: SIZES.lg,
     fontWeight: 'bold',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.spacing.md,
   },
   actionButton: {
-    backgroundColor: COLORS.white,
     borderRadius: SIZES.radius.lg,
     padding: SIZES.spacing.lg,
     marginBottom: SIZES.spacing.md,
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
-  },
-  actionButtonPrimary: {
-    backgroundColor: COLORS.primary,
-  },
-  actionButtonSecondary: {
-    backgroundColor: COLORS.white,
   },
   actionButtonContent: {
     flexDirection: 'row',
@@ -465,7 +453,7 @@ const styles = StyleSheet.create({
   actionButtonIcon: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: COLORS.white,
+    color: '#FFFFFF', // Always white on primary button
     marginRight: SIZES.spacing.md,
     width: 40,
     textAlign: 'center',
@@ -476,12 +464,12 @@ const styles = StyleSheet.create({
   actionButtonTitle: {
     fontSize: SIZES.lg,
     fontWeight: '600',
-    color: COLORS.white,
+    color: '#FFFFFF', // Always white on primary button
     marginBottom: SIZES.spacing.xs,
   },
   actionButtonSubtitle: {
     fontSize: SIZES.sm,
-    color: COLORS.white,
+    color: '#FFFFFF', // Always white on primary button
     opacity: 0.9,
   },
   actionRow: {
@@ -500,45 +488,7 @@ const styles = StyleSheet.create({
   actionButtonTitleSecondary: {
     fontSize: SIZES.base,
     fontWeight: '600',
-    color: COLORS.textPrimary,
     textAlign: 'center',
-  },
-
-  // User Info Card
-  card: {
-    backgroundColor: COLORS.white,
-    borderRadius: SIZES.radius.lg,
-    padding: SIZES.spacing.lg,
-    shadowColor: COLORS.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  cardTitle: {
-    fontSize: SIZES.lg,
-    fontWeight: 'bold',
-    color: COLORS.textPrimary,
-    marginBottom: SIZES.spacing.md,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: SIZES.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  infoLabel: {
-    fontSize: SIZES.base,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  infoValue: {
-    fontSize: SIZES.base,
-    color: COLORS.textPrimary,
-    fontWeight: '400',
-    flex: 1,
-    textAlign: 'right',
   },
 });
 

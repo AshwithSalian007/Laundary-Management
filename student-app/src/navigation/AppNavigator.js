@@ -2,34 +2,62 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/theme';
 
 // Screens
 import LoginScreen from '../screens/LoginScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import AccountInfoScreen from '../screens/AccountInfoScreen';
 
 const Stack = createStackNavigator();
 
+// Fade transition interpolator - defined outside component to prevent recreation
+const fadeTransition = ({ current: { progress } }) => ({
+  cardStyle: {
+    opacity: progress,
+  },
+});
+
 const AppNavigator = () => {
   const { isAuthenticated, isLoading } = useAuth();
+  const { isDark, colors } = useTheme();
+
+  // Create custom navigation theme based on current theme
+  const navigationTheme = React.useMemo(() => ({
+    dark: isDark,
+    colors: {
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.card,
+      text: colors.textPrimary,
+      border: colors.border,
+      notification: colors.primary,
+    },
+  }), [isDark, colors]);
+
+  // Memoize card style to prevent recreation
+  const cardStyle = React.useMemo(() => ({
+    backgroundColor: colors.background,
+  }), [colors.background]);
 
   // Show loading screen while checking authentication
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
-          cardStyle: { backgroundColor: COLORS.background },
+          cardStyle: cardStyle,
+          cardStyleInterpolator: fadeTransition,
         }}
       >
         {isAuthenticated ? (
@@ -37,6 +65,7 @@ const AppNavigator = () => {
           <>
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="Settings" component={SettingsScreen} />
+            <Stack.Screen name="AccountInfo" component={AccountInfoScreen} />
           </>
         ) : (
           // User is not authenticated - Show auth screens
@@ -52,7 +81,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
   },
 });
 

@@ -8,16 +8,20 @@ import { Svg, Circle } from 'react-native-svg';
  * @param {number} size - Diameter of the circle
  * @param {number} strokeWidth - Width of the progress ring
  * @param {string} color - Color of the progress ring
+ * @param {string} backgroundColor - Color of the background ring
  * @param {string} label - Main label text
  * @param {string} sublabel - Secondary label text
+ * @param {string} sublabelColor - Color of the sublabel text
  */
 const ProgressRing = ({
   percentage = 0,
   size = 160,
   strokeWidth = 12,
   color = '#2563EB',
+  backgroundColor = '#E5E7EB',
   label = '',
   sublabel = '',
+  sublabelColor = '#6B7280',
 }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -32,7 +36,7 @@ const ProgressRing = ({
           cx={size / 2}
           cy={size / 2}
           r={radius}
-          stroke="#E5E7EB"
+          stroke={backgroundColor}
           strokeWidth={strokeWidth}
           fill="none"
         />
@@ -55,7 +59,7 @@ const ProgressRing = ({
       {/* Center content */}
       <View style={styles.centerContent}>
         <Text style={[styles.label, { color }]}>{label}</Text>
-        {sublabel && <Text style={styles.sublabel}>{sublabel}</Text>}
+        {sublabel && <Text style={[styles.sublabel, { color: sublabelColor }]}>{sublabel}</Text>}
       </View>
     </View>
   );
@@ -80,7 +84,6 @@ const styles = StyleSheet.create({
   },
   sublabel: {
     fontSize: 14,
-    color: '#6B7280',
     marginTop: 4,
   },
 });

@@ -1,5 +1,5 @@
-// Theme colors for the laundry app
-export const COLORS = {
+// Light theme colors
+export const LIGHT_COLORS = {
   // Primary colors - Clean Blue & White theme
   primary: '#2563EB', // Blue - representing water and cleanliness
   primaryLight: '#60A5FA',
@@ -21,6 +21,7 @@ export const COLORS = {
   black: '#000000',
   background: '#F9FAFB',
   surface: '#FFFFFF',
+  card: '#FFFFFF',
 
   // Text colors
   textPrimary: '#111827',
@@ -33,6 +34,55 @@ export const COLORS = {
 
   // Shadow
   shadow: '#000000',
+
+  // Overlay
+  overlay: 'rgba(0, 0, 0, 0.5)',
+};
+
+// Dark theme colors - Minimalist dark palette
+export const DARK_COLORS = {
+  // Primary colors - Slightly muted for dark mode
+  primary: '#3B82F6',
+  primaryLight: '#60A5FA',
+  primaryDark: '#2563EB',
+
+  // Secondary colors
+  secondary: '#10B981',
+  secondaryLight: '#34D399',
+  secondaryDark: '#059669',
+
+  // Status colors
+  success: '#10B981',
+  error: '#F87171',
+  warning: '#FBBF24',
+  info: '#60A5FA',
+
+  // Neutral colors
+  white: '#FFFFFF',
+  black: '#000000',
+  background: '#0F172A', // Deep slate background
+  surface: '#1E293B', // Elevated surface
+  card: '#1E293B',
+
+  // Text colors
+  textPrimary: '#F1F5F9', // Near white
+  textSecondary: '#94A3B8', // Muted gray
+  textDisabled: '#64748B',
+
+  // Border colors
+  border: '#334155',
+  borderDark: '#475569',
+
+  // Shadow
+  shadow: '#000000',
+
+  // Overlay
+  overlay: 'rgba(0, 0, 0, 0.7)',
+};
+
+// Function to get theme colors based on mode
+export const getColors = (isDark) => {
+  return isDark ? DARK_COLORS : LIGHT_COLORS;
 };
 
 export const SIZES = {

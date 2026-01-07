@@ -11,12 +11,13 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../context/AuthContext';
-import { COLORS, SIZES } from '../constants/theme';
+import { useTheme } from '../context/ThemeContext';
+import { SIZES } from '../constants/theme';
 
 const LoginScreen = () => {
   const { login } = useAuth();
+  const { isDark, colors } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -69,29 +70,38 @@ const LoginScreen = () => {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.title}>Student Laundry</Text>
-          <Text style={styles.subtitle}>Sign in to your account</Text>
+          <Text style={[styles.title, { color: colors.primary }]}>Student Laundry</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Sign in to your account
+          </Text>
         </View>
 
         {/* Login Form */}
-        <View style={styles.form}>
+        <View style={[styles.form, { backgroundColor: colors.card }]}>
           {/* Email Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Email</Text>
             <TextInput
-              style={[styles.input, errors.email && styles.inputError]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+                errors.email && { borderColor: colors.error },
+              ]}
               placeholder="Enter your email"
-              placeholderTextColor={COLORS.textDisabled}
+              placeholderTextColor={colors.textDisabled}
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -99,16 +109,28 @@ const LoginScreen = () => {
               autoComplete="email"
               editable={!isLoading}
             />
-            {errors.email && <Text style={styles.errorText}>{errors.email}</Text>}
+            {errors.email && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.email}
+              </Text>
+            )}
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={[styles.label, { color: colors.textPrimary }]}>Password</Text>
             <TextInput
-              style={[styles.input, errors.password && styles.inputError]}
+              style={[
+                styles.input,
+                {
+                  backgroundColor: colors.background,
+                  borderColor: colors.border,
+                  color: colors.textPrimary,
+                },
+                errors.password && { borderColor: colors.error },
+              ]}
               placeholder="Enter your password"
-              placeholderTextColor={COLORS.textDisabled}
+              placeholderTextColor={colors.textDisabled}
               value={password}
               onChangeText={setPassword}
               secureTextEntry={true}
@@ -116,18 +138,26 @@ const LoginScreen = () => {
               autoComplete="password"
               editable={!isLoading}
             />
-            {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+            {errors.password && (
+              <Text style={[styles.errorText, { color: colors.error }]}>
+                {errors.password}
+              </Text>
+            )}
           </View>
 
           {/* Login Button */}
           <TouchableOpacity
-            style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
+            style={[
+              styles.loginButton,
+              { backgroundColor: colors.primary },
+              isLoading && styles.loginButtonDisabled,
+            ]}
             onPress={handleLogin}
             disabled={isLoading}
             activeOpacity={0.7}
           >
             {isLoading ? (
-              <ActivityIndicator color={COLORS.white} size="small" />
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={styles.loginButtonText}>Sign In</Text>
             )}
@@ -136,7 +166,7 @@ const LoginScreen = () => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, { color: colors.textSecondary }]}>
             Having trouble logging in? Contact your hostel administrator.
           </Text>
         </View>
@@ -148,7 +178,6 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -162,18 +191,15 @@ const styles = StyleSheet.create({
   title: {
     fontSize: SIZES.xxxl,
     fontWeight: 'bold',
-    color: COLORS.primary,
     marginBottom: SIZES.spacing.sm,
   },
   subtitle: {
     fontSize: SIZES.base,
-    color: COLORS.textSecondary,
   },
   form: {
-    backgroundColor: COLORS.surface,
     borderRadius: SIZES.radius.lg,
     padding: SIZES.spacing.lg,
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -185,45 +211,35 @@ const styles = StyleSheet.create({
   label: {
     fontSize: SIZES.sm,
     fontWeight: '600',
-    color: COLORS.textPrimary,
     marginBottom: SIZES.spacing.xs,
   },
   input: {
-    backgroundColor: COLORS.background,
     borderWidth: 1,
-    borderColor: COLORS.border,
     borderRadius: SIZES.radius.md,
     paddingHorizontal: SIZES.spacing.md,
     paddingVertical: SIZES.spacing.sm + 4,
     fontSize: SIZES.base,
-    color: COLORS.textPrimary,
-  },
-  inputError: {
-    borderColor: COLORS.error,
   },
   errorText: {
     fontSize: SIZES.xs,
-    color: COLORS.error,
     marginTop: SIZES.spacing.xs,
   },
   loginButton: {
-    backgroundColor: COLORS.primary,
     borderRadius: SIZES.radius.md,
     paddingVertical: SIZES.spacing.md,
     alignItems: 'center',
     marginTop: SIZES.spacing.md,
-    shadowColor: COLORS.primary,
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
   },
   loginButtonDisabled: {
-    backgroundColor: COLORS.primaryLight,
     opacity: 0.7,
   },
   loginButtonText: {
-    color: COLORS.white,
+    color: '#FFFFFF', // Always white on primary button
     fontSize: SIZES.base,
     fontWeight: '600',
   },
@@ -233,7 +249,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: SIZES.sm,
-    color: COLORS.textSecondary,
     textAlign: 'center',
     lineHeight: 20,
   },
