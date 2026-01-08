@@ -50,6 +50,11 @@ const washRequestSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    cancellation_reason: {
+      type: String,
+      trim: true,
+      // Set when status is changed to 'cancelled'
+    },
 
     // Soft delete flag
     isDeleted: {

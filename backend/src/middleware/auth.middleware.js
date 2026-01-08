@@ -206,3 +206,7 @@ export const canManageBatches = checkPermission('manage_batches');
 // Middleware to check if admin can manage wash policies
 // Checks for 'manage_policies' permission, but 'all' permission bypasses (line 103)
 export const canManagePolicies = checkPermission('manage_policies');
+
+// Middleware to check if admin can process wash requests
+// Checks for 'process_wash' permission, but 'all' permission bypasses (line 103)
+export const canProcessWash = checkPermission('process_wash');

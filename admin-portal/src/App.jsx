@@ -8,6 +8,7 @@ import DepartmentManagement from './features/departments/components/DepartmentMa
 import BatchManagement from './features/batches/components/BatchManagement'
 import StudentManagement from './features/students/components/StudentManagement'
 import WashPolicyManagement from './features/laundry/components/WashPolicyManagement'
+import WashRequestManagement from './features/laundry/components/WashRequestManagement'
 import LoadingSpinner from './shared/components/LoadingSpinner'
 
 function App() {
@@ -57,6 +58,11 @@ function App() {
       <Route
         path="/policies"
         element={isAuthenticated ? <WashPolicyManagement /> : <Navigate to="/login" replace />}
+      />
+
+      <Route
+        path="/wash-requests"
+        element={isAuthenticated ? <WashRequestManagement /> : <Navigate to="/login" replace />}
       />
 
       <Route path="*" element={<Navigate to="/login" replace />} />

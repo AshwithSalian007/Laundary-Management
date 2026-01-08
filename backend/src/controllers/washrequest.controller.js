@@ -54,6 +54,19 @@ export const createWashRequest = async (req, res) => {
       });
     }
 
+    // Check if student has remaining washes available
+    if (washPlan.remaining_washes <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have used all your washes for this year. No remaining washes available.',
+        data: {
+          total_washes: washPlan.total_washes,
+          used_washes: washPlan.used_washes,
+          remaining_washes: washPlan.remaining_washes,
+        },
+      });
+    }
+
     // Create wash request without weight (admin will add weight later)
     // wash_count will be calculated automatically when weight is added via pre-save hook
     const washRequest = await WashRequest.create({
