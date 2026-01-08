@@ -14,7 +14,7 @@ const washRequestSchema = new mongoose.Schema(
     },
     weight_kg: {
       type: Number,
-      required: [true, 'Please provide laundry weight'],
+      required: false,
       min: [0.1, 'Weight must be at least 0.1 kg'],
     },
     cloth_count: {
@@ -24,8 +24,9 @@ const washRequestSchema = new mongoose.Schema(
     },
     wash_count: {
       type: Number,
-      required: [true, 'Please provide wash count'],
-      min: [1, 'Wash count must be at least 1'],
+      required: false,
+      default: 0,
+      min: [0, 'Wash count cannot be negative'],
     },
     status: {
       type: String,
@@ -63,7 +64,8 @@ const washRequestSchema = new mongoose.Schema(
 
 // Pre-save hook to calculate wash_count based on weight and plan's maxWeightPerWash
 washRequestSchema.pre('save', async function(next) {
-  if (this.isModified('weight_kg') || this.isModified('plan_id')) {
+  // Only calculate wash_count if weight_kg is provided
+  if (this.weight_kg && (this.isModified('weight_kg') || this.isModified('plan_id'))) {
     try {
       // Fetch the yearly wash plan to get maxWeightPerWash
       const YearlyWashPlan = mongoose.model('YearlyWashPlan');

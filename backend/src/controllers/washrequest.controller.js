@@ -38,15 +38,7 @@ export const getMyWashRequests = async (req, res) => {
 export const createWashRequest = async (req, res) => {
   try {
     const studentId = req.user._id;
-    const { weight_kg, cloth_count, notes } = req.body;
-
-    // Validate required fields
-    if (!weight_kg || weight_kg <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide valid weight',
-      });
-    }
+    const { cloth_count, notes } = req.body;
 
     // Find student's active wash plan
     const washPlan = await YearlyWashPlan.findOne({
@@ -62,35 +54,16 @@ export const createWashRequest = async (req, res) => {
       });
     }
 
-    // Calculate wash count
-    const washCount = Math.ceil(weight_kg / washPlan.max_weight_per_wash);
-
-    // Check if student has enough washes
-    if (washCount > washPlan.remaining_washes) {
-      return res.status(400).json({
-        success: false,
-        message: `Insufficient washes. This request requires ${washCount} washes but you only have ${washPlan.remaining_washes} remaining.`,
-      });
-    }
-
-    // Create wash request
+    // Create wash request without weight (admin will add weight later)
+    // wash_count will be calculated automatically when weight is added via pre-save hook
     const washRequest = await WashRequest.create({
       plan_id: washPlan._id,
       student_id: studentId,
-      weight_kg,
       cloth_count: cloth_count || 0,
-      wash_count: washCount,
       notes: notes || '',
       given_date: new Date(),
       status: 'pickup_pending',
-      // processed_by will be set when staff processes the request
-      // For now, we'll need to handle this - either set a default admin or modify the model
     });
-
-    // Update wash plan counters
-    washPlan.used_washes += washCount;
-    washPlan.remaining_washes -= washCount;
-    await washPlan.save();
 
     res.status(201).json({
       success: true,

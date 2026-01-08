@@ -215,6 +215,7 @@ const DashboardScreen = ({ navigation }) => {
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: colors.primary }]}
                 activeOpacity={0.8}
+                onPress={() => navigation.navigate('WashRequest')}
               >
                 <View style={styles.actionButtonContent}>
                   <Text style={styles.actionButtonIcon}>+</Text>
