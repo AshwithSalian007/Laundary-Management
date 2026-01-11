@@ -275,11 +275,11 @@ const WashRequestManagement = () => {
                           {request.student_id?.name || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {request.student_id?.roll_no || 'N/A'}
+                          {request.student_id?.registration_number || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {request.student_id?.batch_id?.name || 'N/A'}
+                        {request.student_id?.batch_id?.batch_label || 'N/A'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {request.cloth_count || 0}

@@ -65,6 +65,12 @@ const Sidebar = ({ visible, onClose, navigation }) => {
       screen: 'AccountInfo',
     },
     {
+      id: 'requests',
+      title: 'My Requests',
+      icon: '📋',
+      screen: 'MyRequests',
+    },
+    {
       id: 'settings',
       title: 'Settings',
       icon: '⚙️',

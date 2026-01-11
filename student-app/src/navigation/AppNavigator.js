@@ -11,6 +11,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AccountInfoScreen from '../screens/AccountInfoScreen';
 import WashRequestScreen from '../screens/WashRequestScreen';
+import MyRequestsScreen from '../screens/MyRequestsScreen';
 
 const Stack = createStackNavigator();
 
@@ -68,6 +69,7 @@ const AppNavigator = () => {
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="AccountInfo" component={AccountInfoScreen} />
             <Stack.Screen name="WashRequest" component={WashRequestScreen} />
+            <Stack.Screen name="MyRequests" component={MyRequestsScreen} />
           </>
         ) : (
           // User is not authenticated - Show auth screens

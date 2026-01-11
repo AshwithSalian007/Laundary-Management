@@ -48,10 +48,10 @@ export const getAllWashRequests = async (req, res) => {
     const washRequests = await WashRequest.find(filter)
       .populate({
         path: 'student_id',
-        select: 'name roll_no email',
+        select: 'name registration_number email',
         populate: {
           path: 'batch_id',
-          select: 'name year',
+          select: 'batch_label current_year',
         },
       })
       .populate('plan_id', 'year_no total_washes remaining_washes max_weight_per_wash')
@@ -97,10 +97,10 @@ export const getWashRequestById = async (req, res) => {
     })
       .populate({
         path: 'student_id',
-        select: 'name roll_no email phone',
+        select: 'name registration_number email phone_number',
         populate: {
           path: 'batch_id',
-          select: 'name year',
+          select: 'batch_label current_year',
           populate: {
             path: 'department_id',
             select: 'name code',
@@ -237,10 +237,10 @@ export const updateWashRequestWeight = async (req, res) => {
     const updatedRequest = await WashRequest.findById(id)
       .populate({
         path: 'student_id',
-        select: 'name roll_no email',
+        select: 'name registration_number email',
         populate: {
           path: 'batch_id',
-          select: 'name year',
+          select: 'batch_label current_year',
         },
       })
       .populate('plan_id', 'year_no total_washes used_washes remaining_washes max_weight_per_wash')
@@ -271,6 +271,9 @@ export const updateWashRequestWeight = async (req, res) => {
 // @route   PUT /api/admin/wash-requests/:id/status
 // @access  Private (Admin with process_wash permission)
 export const updateWashRequestStatus = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { id } = req.params;
     const { status, cancellation_reason } = req.body;
@@ -279,6 +282,7 @@ export const updateWashRequestStatus = async (req, res) => {
     // Validate status
     const validStatuses = ['pickup_pending', 'picked_up', 'washing', 'completed', 'returned', 'cancelled'];
     if (!validStatuses.includes(status)) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: 'Invalid status value',
@@ -289,9 +293,10 @@ export const updateWashRequestStatus = async (req, res) => {
     const washRequest = await WashRequest.findOne({
       _id: id,
       isDeleted: false,
-    });
+    }).session(session);
 
     if (!washRequest) {
+      await session.abortTransaction();
       return res.status(404).json({
         success: false,
         message: 'Wash request not found',
@@ -303,6 +308,7 @@ export const updateWashRequestStatus = async (req, res) => {
 
     // Cannot change status if already returned or cancelled
     if (currentStatus === 'returned' && status !== 'returned') {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: 'Cannot modify returned request',
@@ -311,10 +317,33 @@ export const updateWashRequestStatus = async (req, res) => {
 
     // If cancelling, require cancellation reason
     if (status === 'cancelled' && !cancellation_reason && !washRequest.cancellation_reason) {
+      await session.abortTransaction();
       return res.status(400).json({
         success: false,
         message: 'Please provide cancellation reason',
       });
+    }
+
+    // Check if we need to refund washes (cancelling a request with deducted washes)
+    const hasDeductedWashes = ['washing', 'completed', 'returned'].includes(currentStatus);
+    const isCancelling = status === 'cancelled';
+    const needsRefund = isCancelling && hasDeductedWashes && washRequest.wash_count > 0;
+
+    if (needsRefund) {
+      // Refund washes to student's plan
+      const washPlan = await YearlyWashPlan.findById(washRequest.plan_id).session(session);
+
+      if (!washPlan) {
+        await session.abortTransaction();
+        return res.status(404).json({
+          success: false,
+          message: 'Wash plan not found',
+        });
+      }
+
+      // Refund the washes (only update used_washes, remaining auto-calculated by hook)
+      washPlan.used_washes -= washRequest.wash_count;
+      await washPlan.save({ session });
     }
 
     // Update status
@@ -329,16 +358,18 @@ export const updateWashRequestStatus = async (req, res) => {
       washRequest.returned_date = new Date();
     }
 
-    await washRequest.save();
+    await washRequest.save({ session });
+
+    await session.commitTransaction();
 
     // Fetch updated request with populated fields
     const updatedRequest = await WashRequest.findById(id)
       .populate({
         path: 'student_id',
-        select: 'name roll_no email',
+        select: 'name registration_number email',
         populate: {
           path: 'batch_id',
-          select: 'name year',
+          select: 'batch_label current_year',
         },
       })
       .populate('plan_id', 'year_no total_washes used_washes remaining_washes max_weight_per_wash')
@@ -347,16 +378,21 @@ export const updateWashRequestStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Status updated successfully',
+      message: needsRefund
+        ? `Status updated successfully. ${washRequest.wash_count} washes refunded.`
+        : 'Status updated successfully',
       data: updatedRequest,
     });
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error updating status:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to update status',
       error: error.message,
     });
+  } finally {
+    session.endSession();
   }
 };
 

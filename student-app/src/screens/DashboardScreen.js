@@ -14,16 +14,19 @@ import { useTheme } from '../context/ThemeContext';
 import { SIZES } from '../constants/theme';
 import ProgressRing from '../components/ProgressRing';
 import Sidebar from '../components/Sidebar';
+import CurrentWashRequest from '../components/CurrentWashRequest';
 import {
   getMyWashPlan,
   calculateWashStats,
   formatPlanDate,
 } from '../services/washPlanService';
+import { getMyWashRequests } from '../services/washRequestService';
 
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { isDark, colors } = useTheme();
   const [washPlan, setWashPlan] = useState(null);
+  const [currentRequest, setCurrentRequest] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -44,13 +47,30 @@ const DashboardScreen = ({ navigation }) => {
     }
   };
 
+  // Fetch current wash request
+  const fetchCurrentRequest = async () => {
+    try {
+      const response = await getMyWashRequests();
+      const requests = response.data || [];
+      // Find the most recent active request (not returned or cancelled)
+      const activeRequest = requests.find(
+        (req) => !['returned', 'cancelled'].includes(req.status)
+      );
+      setCurrentRequest(activeRequest || null);
+    } catch (err) {
+      console.error('Failed to fetch current request:', err);
+    }
+  };
+
   useEffect(() => {
     fetchWashPlan();
+    fetchCurrentRequest();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchWashPlan();
+    fetchCurrentRequest();
   };
 
   const toggleSidebar = () => {
@@ -206,6 +226,14 @@ const DashboardScreen = ({ navigation }) => {
               </View>
             </View>
 
+            {/* Current Wash Request */}
+            {currentRequest && (
+              <CurrentWashRequest
+                request={currentRequest}
+                onViewDetails={() => navigation.navigate('MyRequests')}
+              />
+            )}
+
             {/* Quick Actions */}
             <View style={styles.actionsContainer}>
               <Text style={[styles.actionsTitle, { color: colors.textPrimary }]}>
@@ -236,6 +264,7 @@ const DashboardScreen = ({ navigation }) => {
                     { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border }
                   ]}
                   activeOpacity={0.8}
+                  onPress={() => navigation.navigate('MyRequests')}
                 >
                   <Text style={styles.actionButtonIconSecondary}>📋</Text>
                   <Text style={[styles.actionButtonTitleSecondary, { color: colors.textPrimary }]}>
