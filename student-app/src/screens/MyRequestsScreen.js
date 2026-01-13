@@ -310,7 +310,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: SIZES.spacing.lg,
-    paddingVertical: SIZES.spacing.md,
+    paddingTop: SIZES.spacing.md,
+    paddingBottom: SIZES.spacing.md,
     borderBottomWidth: 1,
   },
   backButton: {
@@ -334,21 +335,27 @@ const styles = StyleSheet.create({
 
   // Filters
   filterContainer: {
-    maxHeight: 60,
+    backgroundColor: 'transparent',
+    maxHeight: 56,
   },
   filterContent: {
     paddingHorizontal: SIZES.spacing.lg,
-    paddingVertical: SIZES.spacing.md,
+    paddingVertical: SIZES.spacing.sm + 2,
+    alignItems: 'center',
   },
   filterPill: {
     paddingHorizontal: SIZES.spacing.lg,
-    paddingVertical: SIZES.spacing.sm,
-    borderRadius: SIZES.radius.full,
+    paddingVertical: 6,
+    borderRadius: 20,
     marginRight: SIZES.spacing.sm,
     borderWidth: 1,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterText: {
     fontSize: SIZES.sm,
+    lineHeight: 16,
   },
 
   // List
