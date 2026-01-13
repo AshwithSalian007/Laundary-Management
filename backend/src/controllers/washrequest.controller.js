@@ -67,6 +67,40 @@ export const createWashRequest = async (req, res) => {
       });
     }
 
+    // Check for existing active requests (prevent duplicate active requests)
+    const existingActiveRequest = await WashRequest.findOne({
+      student_id: studentId,
+      status: { $nin: ['returned', 'cancelled'] },
+      isDeleted: false,
+    });
+
+    if (existingActiveRequest) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have an active wash request. Please wait for it to be completed or cancelled before creating a new one.',
+        data: {
+          existing_request_id: existingActiveRequest._id,
+          existing_request_status: existingActiveRequest.status,
+        },
+      });
+    }
+
+    // Validate cloth count range
+    if (cloth_count && (cloth_count < 0 || cloth_count > 1000)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cloth count must be between 0 and 1000.',
+      });
+    }
+
+    // Validate notes length
+    if (notes && notes.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notes cannot exceed 500 characters.',
+      });
+    }
+
     // Create wash request without weight (admin will add weight later)
     // wash_count will be calculated automatically when weight is added via pre-save hook
     const washRequest = await WashRequest.create({

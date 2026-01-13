@@ -234,6 +234,27 @@ const DashboardScreen = ({ navigation }) => {
               />
             )}
 
+            {/* No Active Request - Empty State */}
+            {!currentRequest && (
+              <View style={[styles.emptyRequestCard, { backgroundColor: colors.card }]}>
+                <Text style={styles.emptyRequestIcon}>📦</Text>
+                <Text style={[styles.emptyRequestTitle, { color: colors.textPrimary }]}>
+                  No Active Request
+                </Text>
+                <Text style={[styles.emptyRequestText, { color: colors.textSecondary }]}>
+                  You don't have any active wash request at the moment
+                </Text>
+                <TouchableOpacity
+                  style={[styles.emptyRequestButton, { backgroundColor: colors.primary }]}
+                  onPress={() => navigation.navigate('WashRequest')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.emptyRequestButtonIcon}>+</Text>
+                  <Text style={styles.emptyRequestButtonText}>Create New Request</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {/* Quick Actions */}
             <View style={styles.actionsContainer}>
               <Text style={[styles.actionsTitle, { color: colors.textPrimary }]}>
@@ -519,6 +540,58 @@ const styles = StyleSheet.create({
     fontSize: SIZES.base,
     fontWeight: '600',
     textAlign: 'center',
+  },
+
+  // Empty Request Card
+  emptyRequestCard: {
+    borderRadius: SIZES.radius.xl,
+    padding: SIZES.spacing.xl,
+    marginBottom: SIZES.spacing.lg,
+    alignItems: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  emptyRequestIcon: {
+    fontSize: 56,
+    marginBottom: SIZES.spacing.md,
+  },
+  emptyRequestTitle: {
+    fontSize: SIZES.xl,
+    fontWeight: 'bold',
+    marginBottom: SIZES.spacing.sm,
+    textAlign: 'center',
+  },
+  emptyRequestText: {
+    fontSize: SIZES.base,
+    textAlign: 'center',
+    marginBottom: SIZES.spacing.lg,
+    lineHeight: 22,
+  },
+  emptyRequestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SIZES.spacing.md,
+    paddingHorizontal: SIZES.spacing.lg,
+    borderRadius: SIZES.radius.lg,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyRequestButtonIcon: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginRight: SIZES.spacing.sm,
+  },
+  emptyRequestButtonText: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });
 

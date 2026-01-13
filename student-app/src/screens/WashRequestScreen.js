@@ -15,7 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { SIZES } from '../constants/theme';
 import { getMyWashPlan } from '../services/washPlanService';
-import { createWashRequest } from '../services/washRequestService';
+import { createWashRequest, getMyWashRequests } from '../services/washRequestService';
 
 const WashRequestScreen = ({ navigation }) => {
   const { isDark, colors } = useTheme();
@@ -29,11 +29,18 @@ const WashRequestScreen = ({ navigation }) => {
   const [submitting, setSubmitting] = useState(false);
   const [washPlan, setWashPlan] = useState(null);
   const [errors, setErrors] = useState({});
+  const [hasActiveRequest, setHasActiveRequest] = useState(false);
+  const [activeRequest, setActiveRequest] = useState(null);
+  const [checkFailed, setCheckFailed] = useState(false);
 
   // Fetch wash plan to display remaining washes
   useEffect(() => {
-    fetchWashPlan();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    await Promise.all([fetchWashPlan(), checkActiveRequests()]);
+  };
 
   const fetchWashPlan = async () => {
     try {
@@ -57,12 +64,42 @@ const WashRequestScreen = ({ navigation }) => {
     }
   };
 
+  const checkActiveRequests = async () => {
+    try {
+      const response = await getMyWashRequests();
+      const requests = response.data || [];
+      // Find any request that is NOT returned or cancelled
+      const active = requests.find(
+        (req) => !['returned', 'cancelled'].includes(req.status)
+      );
+
+      if (active) {
+        setHasActiveRequest(true);
+        setActiveRequest(active);
+      } else {
+        setHasActiveRequest(false);
+        setActiveRequest(null);
+      }
+      setCheckFailed(false);
+    } catch (error) {
+      console.error('Failed to check active requests:', error);
+      setCheckFailed(true);
+    }
+  };
+
   const validateForm = () => {
     const newErrors = {};
 
     // Validate cloth count if provided
     if (clothCount && (isNaN(clothCount) || parseInt(clothCount) < 0)) {
       newErrors.clothCount = 'Please enter a valid number';
+    } else if (clothCount && parseInt(clothCount) > 1000) {
+      newErrors.clothCount = 'Cloth count cannot exceed 1000';
+    }
+
+    // Validate notes length
+    if (notes && notes.length > 500) {
+      newErrors.notes = 'Notes cannot exceed 500 characters';
     }
 
     setErrors(newErrors);
@@ -70,6 +107,25 @@ const WashRequestScreen = ({ navigation }) => {
   };
 
   const handleSubmit = async () => {
+    // Check if there's already an active request
+    if (hasActiveRequest) {
+      Alert.alert(
+        'Active Request Exists',
+        'You already have an active wash request. Please wait for it to be completed or cancelled before creating a new one.',
+        [
+          {
+            text: 'View Request',
+            onPress: () => navigation.navigate('MyRequests'),
+          },
+          {
+            text: 'OK',
+            style: 'cancel',
+          },
+        ]
+      );
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -161,6 +217,50 @@ const WashRequestScreen = ({ navigation }) => {
                 </View>
               )}
 
+              {/* Active Request Warning */}
+              {hasActiveRequest && activeRequest && (
+                <View style={[styles.warningCard, { backgroundColor: colors.warning + '20', borderColor: colors.warning }]}>
+                  <Text style={[styles.warningIcon, { color: colors.warning }]}>⚠️</Text>
+                  <View style={styles.warningContent}>
+                    <Text style={[styles.warningTitle, { color: colors.textPrimary }]}>
+                      Active Request Found
+                    </Text>
+                    <Text style={[styles.warningText, { color: colors.textSecondary }]}>
+                      You already have an active wash request with status: {activeRequest.status.replace('_', ' ')}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.warningButton, { backgroundColor: colors.warning }]}
+                      onPress={() => navigation.navigate('MyRequests')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.warningButtonText}>View Request</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* Check Failed Warning */}
+              {checkFailed && !hasActiveRequest && (
+                <View style={[styles.warningCard, { backgroundColor: colors.error + '15', borderColor: colors.error }]}>
+                  <Text style={[styles.warningIcon, { color: colors.error }]}>⚠️</Text>
+                  <View style={styles.warningContent}>
+                    <Text style={[styles.warningTitle, { color: colors.textPrimary }]}>
+                      Connection Issue
+                    </Text>
+                    <Text style={[styles.warningText, { color: colors.textSecondary }]}>
+                      Could not verify active requests. Please check your internet connection and try again.
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.warningButton, { backgroundColor: colors.error }]}
+                      onPress={checkActiveRequests}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.warningButtonText}>Retry</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               {/* Form */}
               <View style={styles.form}>
                 {/* Cloth Count Input */}
@@ -207,19 +307,33 @@ const WashRequestScreen = ({ navigation }) => {
                       styles.textArea,
                       {
                         backgroundColor: colors.background,
-                        borderColor: colors.border,
+                        borderColor: errors.notes ? colors.error : colors.border,
                         color: colors.textPrimary,
                       },
                     ]}
                     placeholder="Any special instructions or notes..."
                     placeholderTextColor={colors.textDisabled}
                     value={notes}
-                    onChangeText={setNotes}
+                    onChangeText={(text) => {
+                      setNotes(text);
+                      if (errors.notes) {
+                        setErrors({ ...errors, notes: null });
+                      }
+                    }}
                     multiline
                     numberOfLines={4}
                     textAlignVertical="top"
                     editable={!submitting}
+                    maxLength={500}
                   />
+                  {errors.notes && (
+                    <Text style={[styles.errorText, { color: colors.error }]}>
+                      {errors.notes}
+                    </Text>
+                  )}
+                  <Text style={[styles.characterCount, { color: colors.textSecondary }]}>
+                    {notes.length}/500 characters
+                  </Text>
                 </View>
 
                 {/* Submit Button */}
@@ -355,6 +469,11 @@ const styles = StyleSheet.create({
     fontSize: SIZES.sm,
     marginTop: SIZES.spacing.xs,
   },
+  characterCount: {
+    fontSize: SIZES.xs,
+    marginTop: SIZES.spacing.xs,
+    textAlign: 'right',
+  },
   submitButton: {
     borderRadius: SIZES.radius.lg,
     paddingVertical: SIZES.spacing.lg,
@@ -380,6 +499,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     marginTop: SIZES.spacing.md,
+  },
+  warningCard: {
+    flexDirection: 'row',
+    borderRadius: SIZES.radius.lg,
+    padding: SIZES.spacing.lg,
+    marginBottom: SIZES.spacing.xl,
+    borderWidth: 1,
+    alignItems: 'flex-start',
+  },
+  warningIcon: {
+    fontSize: 28,
+    marginRight: SIZES.spacing.md,
+  },
+  warningContent: {
+    flex: 1,
+  },
+  warningTitle: {
+    fontSize: SIZES.base,
+    fontWeight: '600',
+    marginBottom: SIZES.spacing.xs,
+  },
+  warningText: {
+    fontSize: SIZES.sm,
+    lineHeight: 20,
+    marginBottom: SIZES.spacing.md,
+  },
+  warningButton: {
+    borderRadius: SIZES.radius.md,
+    paddingVertical: SIZES.spacing.sm,
+    paddingHorizontal: SIZES.spacing.md,
+    alignSelf: 'flex-start',
+  },
+  warningButtonText: {
+    color: '#FFFFFF',
+    fontSize: SIZES.sm,
+    fontWeight: '600',
   },
 });
 
