@@ -26,6 +26,7 @@ const BatchManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewYearsModal, setShowViewYearsModal] = useState(false);
+  const [showPromoteModal, setShowPromoteModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState(null);
 
   // Form data for create
@@ -39,6 +40,13 @@ const BatchManagement = () => {
 
   // Form data for edit (years array)
   const [editYearsData, setEditYearsData] = useState([]);
+
+  // Form data for promote
+  const [promoteFormData, setPromoteFormData] = useState({
+    use_active_policy: true,
+    total_washes: '',
+    max_weight_per_wash: '',
+  });
 
   // Fetch batches and departments on component mount
   useEffect(() => {
@@ -209,6 +217,54 @@ const BatchManagement = () => {
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to restore batch');
+    }
+  };
+
+  const openPromoteModal = (batch) => {
+    setError('');
+    setSelectedBatch(batch);
+    setPromoteFormData({
+      use_active_policy: true,
+      total_washes: '',
+      max_weight_per_wash: '',
+    });
+    setShowPromoteModal(true);
+  };
+
+  const handlePromoteBatch = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+
+      // Build payload based on form data
+      let payload = {};
+      if (!promoteFormData.use_active_policy) {
+        // Validate custom policy values
+        const totalWashes = Number(promoteFormData.total_washes);
+        const maxWeight = Number(promoteFormData.max_weight_per_wash);
+
+        if (isNaN(totalWashes) || totalWashes < 0) {
+          setError('Total washes must be a non-negative number');
+          return;
+        }
+
+        if (isNaN(maxWeight) || maxWeight < 0.1) {
+          setError('Maximum weight must be at least 0.1 kg');
+          return;
+        }
+
+        payload.total_washes = totalWashes;
+        payload.max_weight_per_wash = maxWeight;
+      }
+
+      const result = await batchService.promoteBatch(selectedBatch._id, payload);
+      setSuccess(result.message || 'Batch promoted successfully!');
+      setShowPromoteModal(false);
+      setSelectedBatch(null);
+      fetchData();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to promote batch');
     }
   };
 
@@ -408,6 +464,14 @@ const BatchManagement = () => {
                         >
                           Edit
                         </button>
+                        {batch.current_year <= batch.department_id?.duration_years && (
+                          <button
+                            onClick={() => openPromoteModal(batch)}
+                            className="text-orange-600 hover:text-orange-900"
+                          >
+                            Promote
+                          </button>
+                        )}
                         <button
                           onClick={() => handleArchiveBatch(batch._id)}
                           className="text-red-600 hover:text-red-900"
@@ -752,6 +816,173 @@ const BatchManagement = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Promote Batch Modal */}
+        {showPromoteModal && selectedBatch && (
+          <div
+            className="fixed inset-0 backdrop-blur-md bg-white/10 flex items-center justify-center z-50 animate-fadeIn"
+            onClick={() => {
+              setShowPromoteModal(false);
+              setSelectedBatch(null);
+            }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Promote Batch
+              </h2>
+
+              <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Batch:</span> {selectedBatch.batch_label}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Department:</span> {selectedBatch.department_id?.name}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Current Year:</span> {selectedBatch.current_year}
+                </p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Promoting to:</span> Year {selectedBatch.current_year + 1}
+                </p>
+              </div>
+
+              {error && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handlePromoteBatch}>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Policy Configuration
+                  </label>
+
+                  <div className="space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="policyType"
+                        checked={promoteFormData.use_active_policy}
+                        onChange={() =>
+                          setPromoteFormData({
+                            ...promoteFormData,
+                            use_active_policy: true,
+                          })
+                        }
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-700">Use Active Policy</span>
+                    </label>
+
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="policyType"
+                        checked={!promoteFormData.use_active_policy}
+                        onChange={() =>
+                          setPromoteFormData({
+                            ...promoteFormData,
+                            use_active_policy: false,
+                          })
+                        }
+                        className="mr-2"
+                      />
+                      <span className="text-sm text-gray-700">Custom Policy Values</span>
+                    </label>
+                  </div>
+                </div>
+
+                {!promoteFormData.use_active_policy && (
+                  <div className="mb-4 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Total Washes
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={promoteFormData.total_washes}
+                        onChange={(e) =>
+                          setPromoteFormData({
+                            ...promoteFormData,
+                            total_washes: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22]"
+                        placeholder="e.g., 30"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Max Weight per Wash (kg)
+                      </label>
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={promoteFormData.max_weight_per_wash}
+                        onChange={(e) =>
+                          setPromoteFormData({
+                            ...promoteFormData,
+                            max_weight_per_wash: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#228B22]"
+                        placeholder="e.g., 7.0"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm font-semibold text-yellow-800 mb-2">
+                    This will:
+                  </p>
+                  <ul className="text-sm text-yellow-700 space-y-1 list-disc list-inside">
+                    <li>Close all Year {selectedBatch.current_year} wash plans</li>
+                    {selectedBatch.current_year === selectedBatch.department_id?.duration_years ? (
+                      <>
+                        <li>Mark students as graduated (no new plans created)</li>
+                        <li>Update batch to Year {selectedBatch.current_year + 1} (graduated)</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>Create Year {selectedBatch.current_year + 1} plans for active students</li>
+                        <li>Update batch to Year {selectedBatch.current_year + 1}</li>
+                      </>
+                    )}
+                  </ul>
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-[#228B22] text-white rounded-lg hover:bg-[#4CAF50] transition-colors"
+                  >
+                    Promote Batch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPromoteModal(false);
+                      setSelectedBatch(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

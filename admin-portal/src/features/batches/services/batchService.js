@@ -58,6 +58,19 @@ const batchService = {
     const response = await axiosInstance.put(`/admin/batches/${batchId}/restore`);
     return response.data;
   },
+
+  /**
+   * Promote batch to next year
+   * @param {string} batchId - Batch ID to promote
+   * @param {Object} policyData - Optional policy data
+   * @param {number} policyData.total_washes - Optional custom total washes
+   * @param {number} policyData.max_weight_per_wash - Optional custom max weight per wash
+   * @returns {Promise} API response with promotion summary
+   */
+  promoteBatch: async (batchId, policyData = {}) => {
+    const response = await axiosInstance.post(`/admin/batches/${batchId}/promote`, policyData);
+    return response.data;
+  },
 };
 
 export default batchService;

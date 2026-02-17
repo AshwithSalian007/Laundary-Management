@@ -1,5 +1,8 @@
 import Batch from '../models/Batch.js';
 import Department from '../models/Department.js';
+import Student from '../models/Student.js';
+import YearlyWashPlan from '../models/YearlyWashPlan.js';
+import WashPolicy from '../models/WashPolicy.js';
 
 /**
  * @desc    Get all batches (active and optionally deleted)
@@ -434,6 +437,238 @@ export const restoreBatch = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to restore batch',
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * @desc    Promote batch to next year
+ * @route   POST /api/admin/batches/:id/promote
+ * @access  Private (requires 'all' or 'manage_batches' permission)
+ */
+export const promoteBatch = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { total_washes, max_weight_per_wash } = req.body;
+
+    // Find batch with department information
+    const batch = await Batch.findOne({ _id: id, isDeleted: false }).populate({
+      path: 'department_id',
+      select: 'name duration_years isDeleted'
+    });
+
+    if (!batch) {
+      return res.status(404).json({
+        success: false,
+        message: 'Batch not found or has been deleted',
+      });
+    }
+
+    // Check if department is deleted
+    if (!batch.department_id || batch.department_id.isDeleted) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot promote batch: associated department has been deleted',
+      });
+    }
+
+    // Validate: Check if batch can be promoted (not beyond final year)
+    const maxYear = batch.department_id.duration_years;
+    if (batch.current_year > maxYear) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot promote batch: already beyond final year (${maxYear})`,
+      });
+    }
+
+    const currentYearNo = batch.current_year;
+    const nextYearNo = currentYearNo + 1;
+
+    // Validate: Check if next year's start_date is set
+    const nextYearConfig = batch.years.find(y => y.year_no === nextYearNo);
+    if (!nextYearConfig || !nextYearConfig.start_date) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot promote: Year ${nextYearNo} start date is not configured in batch settings`,
+      });
+    }
+
+    // Get or validate wash policy
+    let policyToUse = {};
+
+    if (total_washes !== undefined || max_weight_per_wash !== undefined) {
+      // Admin provided custom policy values
+      if (total_washes !== undefined) {
+        if (typeof total_washes !== 'number' || total_washes < 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'total_washes must be a non-negative number',
+          });
+        }
+        policyToUse.total_washes = total_washes;
+      }
+
+      if (max_weight_per_wash !== undefined) {
+        if (typeof max_weight_per_wash !== 'number' || max_weight_per_wash < 0.1) {
+          return res.status(400).json({
+            success: false,
+            message: 'max_weight_per_wash must be at least 0.1 kg',
+          });
+        }
+        policyToUse.max_weight_per_wash = max_weight_per_wash;
+      }
+
+      // If only one value provided, get the other from active policy
+      if (total_washes === undefined || max_weight_per_wash === undefined) {
+        const activePolicy = await WashPolicy.findOne({ is_active: true, isDeleted: false });
+
+        if (!activePolicy) {
+          return res.status(400).json({
+            success: false,
+            message: 'No active wash policy found. Please provide both total_washes and max_weight_per_wash',
+          });
+        }
+
+        if (total_washes === undefined) {
+          policyToUse.total_washes = activePolicy.total_washes;
+        }
+        if (max_weight_per_wash === undefined) {
+          policyToUse.max_weight_per_wash = activePolicy.max_weight_per_wash;
+        }
+        policyToUse.policy_id = activePolicy._id;
+      } else {
+        // Both values provided by admin - still need active policy for reference
+        const activePolicy = await WashPolicy.findOne({ is_active: true, isDeleted: false });
+
+        if (!activePolicy) {
+          return res.status(400).json({
+            success: false,
+            message: 'No active wash policy found. A policy reference is required even when using custom values. Please activate a wash policy first.',
+          });
+        }
+
+        policyToUse.policy_id = activePolicy._id;
+      }
+    } else {
+      // No custom values - use active policy
+      const activePolicy = await WashPolicy.findOne({ is_active: true, isDeleted: false });
+
+      if (!activePolicy) {
+        return res.status(400).json({
+          success: false,
+          message: 'No active wash policy found. Please activate a policy or provide custom total_washes and max_weight_per_wash values',
+        });
+      }
+
+      policyToUse = {
+        policy_id: activePolicy._id,
+        total_washes: activePolicy.total_washes,
+        max_weight_per_wash: activePolicy.max_weight_per_wash
+      };
+    }
+
+    // Get current date for end_date of closing plans
+    const promotionDate = new Date();
+
+    // Step 1: Close all active wash plans for current year
+    const closeResult = await YearlyWashPlan.updateMany(
+      {
+        batch_id: batch._id,
+        year_no: currentYearNo,
+        is_active: true
+      },
+      {
+        $set: {
+          end_date: promotionDate,
+          is_active: false
+        }
+      }
+    );
+
+    // Step 2: Get all active students in this batch
+    const activeStudents = await Student.find({
+      batch_id: batch._id,
+      hostel_status: 'active',
+      isDeleted: false
+    });
+
+    // Step 3: Create new wash plans for non-graduate students
+    let plansCreated = 0;
+    const newPlans = [];
+
+    if (nextYearNo <= maxYear) {
+      // Not final year - create new plans
+      for (const student of activeStudents) {
+        const newPlan = await YearlyWashPlan.create({
+          student_id: student._id,
+          batch_id: batch._id,
+          year_no: nextYearNo,
+          policy_id: policyToUse.policy_id,
+          total_washes: policyToUse.total_washes,
+          max_weight_per_wash: policyToUse.max_weight_per_wash,
+          used_washes: 0,
+          remaining_washes: policyToUse.total_washes,
+          start_date: nextYearConfig.start_date,
+          end_date: null,
+          is_active: true
+        });
+        newPlans.push(newPlan);
+        plansCreated++;
+      }
+    }
+
+    // Step 4: Update batch current_year and set end_date for current year
+    const currentYearIndex = batch.years.findIndex(y => y.year_no === currentYearNo);
+    if (currentYearIndex !== -1) {
+      batch.years[currentYearIndex].end_date = promotionDate;
+    }
+
+    batch.current_year = nextYearNo;
+    await batch.save();
+
+    // Prepare response
+    const isGraduating = nextYearNo > maxYear;
+
+    res.status(200).json({
+      success: true,
+      message: isGraduating
+        ? `Batch promoted successfully. ${activeStudents.length} students graduated.`
+        : `Batch promoted successfully from Year ${currentYearNo} to Year ${nextYearNo}`,
+      data: {
+        batch: {
+          _id: batch._id,
+          batch_label: batch.batch_label,
+          previous_year: currentYearNo,
+          current_year: batch.current_year,
+          department: batch.department_id.name
+        },
+        promotion_summary: {
+          plans_closed: closeResult.modifiedCount,
+          new_plans_created: plansCreated,
+          active_students: activeStudents.length,
+          is_graduating: isGraduating,
+          policy_used: policyToUse.policy_id ? 'Active Policy' : 'Custom Policy',
+          total_washes: policyToUse.total_washes,
+          max_weight_per_wash: policyToUse.max_weight_per_wash
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error promoting batch:', error);
+
+    // Handle mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: messages[0] || 'Validation error',
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to promote batch',
       error: error.message,
     });
   }

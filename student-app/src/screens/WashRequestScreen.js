@@ -90,10 +90,12 @@ const WashRequestScreen = ({ navigation }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    // Validate cloth count if provided
-    if (clothCount && (isNaN(clothCount) || parseInt(clothCount) < 0)) {
-      newErrors.clothCount = 'Please enter a valid number';
-    } else if (clothCount && parseInt(clothCount) > 1000) {
+    // Validate cloth count - required field
+    if (!clothCount || clothCount.trim() === '') {
+      newErrors.clothCount = 'Number of clothes is required';
+    } else if (isNaN(clothCount) || parseInt(clothCount) <= 0) {
+      newErrors.clothCount = 'Please enter a valid number greater than 0';
+    } else if (parseInt(clothCount) > 1000) {
       newErrors.clothCount = 'Cloth count cannot exceed 1000';
     }
 
@@ -266,7 +268,7 @@ const WashRequestScreen = ({ navigation }) => {
                 {/* Cloth Count Input */}
                 <View style={styles.inputContainer}>
                   <Text style={[styles.label, { color: colors.textPrimary }]}>
-                    Number of Clothes (Optional)
+                    Number of Clothes <Text style={{ color: colors.error }}>*</Text>
                   </Text>
                   <TextInput
                     style={[

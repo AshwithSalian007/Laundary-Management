@@ -16,6 +16,7 @@ import washPolicyRoutes from './routes/washpolicy.routes.js';
 import washPlanRoutes from './routes/washplan.routes.js';
 import washRequestRoutes from './routes/washrequest.routes.js';
 import adminWashRequestRoutes from './routes/admin.washrequest.routes.js';
+import dashboardRoutes from './routes/dashboard.routes.js';
 import { initializeAdmin } from './scripts/initializeAdmin.js';
 
 // Create Express app
@@ -70,6 +71,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 // Mount more specific routes first
+app.use('/api/admin/dashboard', dashboardRoutes);
 app.use('/api/admin/departments', departmentRoutes);
 app.use('/api/admin/batches', batchRoutes);
 app.use('/api/admin/students', studentRoutes);

@@ -1,13 +1,14 @@
 import Redis from 'ioredis';
+import dotenv from 'dotenv';
+dotenv.config();
 
 // Create Redis client with explicit configuration
-// Using explicit host/port/password instead of URL for better compatibility
 const redis = new Redis({
-  host: "redis-11061.crce206.ap-south-1-1.ec2.cloud.redislabs.com",
-  port: 11061,
+  host: "redis-14029.c265.us-east-1-2.ec2.cloud.redislabs.com",
+  port: 14029,
   username: "default",
-  password: "x0LCk83UCs64op5ZC9Q5K8uFxgZLOHEw",
-  maxRetriesPerRequest: null, // Prevents app crash during connection issues
+  password: process.env.REDIS_PASSWORD,
+  maxRetriesPerRequest: null, 
   enableReadyCheck: false,
   connectTimeout: 10000, // 10 seconds
   retryStrategy(times) {

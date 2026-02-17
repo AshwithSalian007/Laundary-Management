@@ -19,8 +19,9 @@ const washRequestSchema = new mongoose.Schema(
     },
     cloth_count: {
       type: Number,
-      default: 0,
-      min: [0, 'Cloth count cannot be negative'],
+      required: [true, 'Number of clothes is required'],
+      min: [1, 'Cloth count must be at least 1'],
+      max: [1000, 'Cloth count cannot exceed 1000'],
     },
     wash_count: {
       type: Number,

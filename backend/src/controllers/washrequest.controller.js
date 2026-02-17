@@ -85,11 +85,25 @@ export const createWashRequest = async (req, res) => {
       });
     }
 
-    // Validate cloth count range
-    if (cloth_count && (cloth_count < 0 || cloth_count > 1000)) {
+    // Validate cloth count - required field
+    if (cloth_count === undefined || cloth_count === null || cloth_count === '') {
       return res.status(400).json({
         success: false,
-        message: 'Cloth count must be between 0 and 1000.',
+        message: 'Number of clothes is required.',
+      });
+    }
+
+    if (isNaN(cloth_count) || cloth_count <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Number of clothes must be greater than 0.',
+      });
+    }
+
+    if (cloth_count > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cloth count cannot exceed 1000.',
       });
     }
 
@@ -106,7 +120,7 @@ export const createWashRequest = async (req, res) => {
     const washRequest = await WashRequest.create({
       plan_id: washPlan._id,
       student_id: studentId,
-      cloth_count: cloth_count || 0,
+      cloth_count: parseInt(cloth_count),
       notes: notes || '',
       given_date: new Date(),
       status: 'pickup_pending',

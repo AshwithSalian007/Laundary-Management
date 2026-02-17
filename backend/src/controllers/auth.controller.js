@@ -269,9 +269,17 @@ export const createStaff = async (req, res) => {
 
 // @desc    Get current admin profile (from Redis)
 // @route   GET /api/admin/me
-// @access  Private
+// @access  Private (Admin only)
 export const getMe = async (req, res) => {
   try {
+    // Ensure this is an admin, not a student
+    if (req.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin access required.',
+      });
+    }
+
     // req.user contains: { id, roleName, permissions } (from Redis via middleware)
     const { id, roleName, permissions } = req.user;
 
@@ -295,9 +303,17 @@ export const getMe = async (req, res) => {
 
 // @desc    Logout admin (clears Redis session)
 // @route   POST /api/admin/logout
-// @access  Private
+// @access  Private (Admin only)
 export const logout = async (req, res) => {
   try {
+    // Ensure this is an admin, not a student
+    if (req.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Use student logout endpoint.',
+      });
+    }
+
     // Delete admin session from Redis
     await redisAuth.deleteAdminSession(req.user.id);
 
@@ -902,9 +918,17 @@ export const studentLogin = async (req, res) => {
 
 // @desc    Logout student
 // @route   POST /api/auth/student/logout
-// @access  Private (Student)
+// @access  Private (Student only)
 export const studentLogout = async (req, res) => {
   try {
+    // Ensure this is a student, not an admin
+    if (req.userType !== 'student') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Use admin logout endpoint.',
+      });
+    }
+
     const studentId = req.user._id.toString();
 
     // Delete session from Redis

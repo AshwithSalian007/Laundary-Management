@@ -210,3 +210,23 @@ export const canManagePolicies = checkPermission('manage_policies');
 // Middleware to check if admin can process wash requests
 // Checks for 'process_wash' permission, but 'all' permission bypasses (line 103)
 export const canProcessWash = checkPermission('process_wash');
+
+// Middleware to check if user is an admin (any admin, regardless of permissions)
+// Use this for routes that should be accessible to all admins but not students
+export const isAdmin = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Not authorized. Please login first.',
+    });
+  }
+
+  if (req.userType !== 'admin') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Admin access required.',
+    });
+  }
+
+  next();
+};
